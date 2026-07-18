@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>calm castles</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An endlessly changing, gently animated pixel-art fantasy vista with a generative dark-fantasy soundtrack.">
+<meta name="theme-color" content="#05060d">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏰</text></svg>">
+<link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+<canvas id="view" role="img" aria-label="A procedurally generated pixel-art fantasy landscape"></canvas>
+<div id="caption" aria-live="polite"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeText">
+  <h1 id="welcomeTitle">calm castles</h1>
+  <p id="welcomeText">an ever-changing vista &middot; best with sound</p>
+  <button id="begin" type="button">enter</button>
+</div>
+<div id="ui" aria-label="Vista controls">
+  <button id="btnNew" type="button" title="New vista (Space)" aria-label="Conjure a new vista">&#10227;</button>
+  <button id="btnShare" type="button" title="Copy a link to this vista (C)" aria-label="Copy a link to this vista">&#x29C9;</button>
+  <button id="btnMute" type="button" title="Mute sound (M)" aria-label="Mute sound" aria-pressed="false">&#9834;</button>
+  <button id="btnFull" type="button" title="Enter fullscreen (F)" aria-label="Enter fullscreen">&#x26F6;</button>
+</div>
+<script src="js/util.js?v=2"></script>
+<script src="js/palette.js?v=4"></script>
+<script src="js/scene.js?v=8"></script>
+<script src="js/castle.js?v=4"></script>
+<script src="js/characters.js?v=2"></script>
+<script src="js/omens.js?v=17"></script>
+<script src="js/render.js?v=15"></script>
+<script src="js/music.js?v=6"></script>
+<script src="js/main.js?v=5"></script>
+</body>
+</html>
