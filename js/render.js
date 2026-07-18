@@ -636,18 +636,35 @@ const Render = (() => {
       g.fillRect(c.x, c.y + rng.int(2, Math.min(14, depth - 2)), 1, 1);
     }
 
-    function tryPlace(halfW, need) {
+    function groundSupport(x, halfW, maxRelief = Infinity) {
+      let minY = Infinity, maxY = -Infinity;
+      for (let xx = x - halfW; xx <= x + halfW; xx++) {
+        const cc = map.get(xx);
+        if (!cc) return null;
+        minY = Math.min(minY, cc.y);
+        maxY = Math.max(maxY, cc.y);
+      }
+      if (maxY - minY > maxRelief) return null;
+      return { minY, maxY };
+    }
+
+    function tryPlace(halfW, need, maxRelief = Infinity) {
       if (maxX - minX < halfW * 2 + 8) return null;
       for (let tries = 0; tries < 26; tries++) {
         const x = rng.int(minX + halfW + 2, maxX - halfW - 2);
         const c = map.get(x);
         if (!c) continue;
         if (need && !need(c)) continue;
+        const support = groundSupport(x, halfW, maxRelief);
+        if (!support) continue;
         let ok = true;
         for (const iv of placed) if (x + halfW > iv[0] && x - halfW < iv[1]) { ok = false; break; }
         if (!ok) continue;
         placed.push([x - halfW, x + halfW]);
-        return c;
+        // Broad objects sit on the lowest point beneath their footprint. On a
+        // gentle slope this embeds a pixel or two instead of leaving daylight
+        // under the downhill edge.
+        return { ...c, y: Number.isFinite(maxRelief) ? support.maxY : c.y };
       }
       return null;
     }
@@ -658,6 +675,8 @@ const Render = (() => {
       const c = cols[rng.int(0, cols.length - 1)];
       if (avoid && c.x > avoid.l - 6 && c.x < avoid.r + 6) continue;
       const roll = rng.next();
+      const clearance = roll < 0.38 ? 3 : roll < 0.58 ? 2 : roll < 0.7 ? 4 : roll < 0.9 ? 3 : 7;
+      if (!groundSupport(c.x, clearance)) continue;
       if (roll < 0.38) drawShrub(g, c.x, c.y + rng.int(1, 4), rng, c.col);
       else if (roll < 0.58) {
         g.fillStyle = css(shade(c.col, -0.25));
@@ -707,32 +726,33 @@ const Render = (() => {
           break;
         }
         case "greatTree":
-          c = tryPlace(14);
+          c = tryPlace(18);
           if (c) drawOak(g, c.x, c.y + 2, rng.int(20, 32), c.col, rng);
           break;
         case "crag":
-          c = tryPlace(12);
+          c = tryPlace(15);
           if (c) drawCrag(g, c.x, c.y, rng, c.col);
           break;
         case "cave":
           c = tryPlace(9);
           if (c) drawCave(g, c.x, c.y, maxCaveY, rng, c.col);
           break;
-        case "statue": c = tryPlace(5); if (c) drawStatue(g, c.x, c.y + 1, rng, p); break;
-        case "obelisk": c = tryPlace(4); if (c) drawObelisk(g, c.x, c.y + 1, rng, p); break;
-        case "archRuin": c = tryPlace(8); if (c) drawArchRuin(g, c.x, c.y + 1, rng, p); break;
-        case "columns": c = tryPlace(8); if (c) drawColumns(g, c.x, c.y + 1, rng, p); break;
-        case "cairn": c = tryPlace(4); if (c) drawCairn(g, c.x, c.y + 1, rng, p); break;
+        case "statue": c = tryPlace(5, null, 10); if (c) drawStatue(g, c.x, c.y + 1, rng, p); break;
+        case "obelisk": c = tryPlace(4, null, 10); if (c) drawObelisk(g, c.x, c.y + 1, rng, p); break;
+        case "archRuin": c = tryPlace(8, null, 10); if (c) drawArchRuin(g, c.x, c.y + 1, rng, p); break;
+        case "columns": c = tryPlace(8, null, 10); if (c) drawColumns(g, c.x, c.y + 1, rng, p); break;
+        case "cairn": c = tryPlace(4, null, 10); if (c) drawCairn(g, c.x, c.y + 1, rng, p); break;
       }
     }
   }
 
   function drawForest(g, cx, half, map, rng, sparse) {
     const bare = S.season === "winter";
+    const edgeInset = sparse ? 4 : 6;
     for (let pass = 0; pass < 2; pass++) {
       const shadeF = pass === 0 ? -0.22 : -0.36;
-      let x = cx - half + rng.int(0, 2);
-      while (x <= cx + half) {
+      let x = cx - half + edgeInset + rng.int(0, 2);
+      while (x <= cx + half - edgeInset) {
         const c = map.get(x);
         if (c) {
           const h = rng.int(6, pass === 0 ? 12 : 16);

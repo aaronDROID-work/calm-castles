@@ -150,18 +150,37 @@ const Omens = (() => {
     }
     if (!eligible.length) return null;
     const segment = rng.pick(eligible);
-    const cx = Math.round(rng.range(segment.l + half, segment.r - half));
+    let cx = null;
+    for (let tries = 0; tries < 40; tries++) {
+      const candidate = Math.round(rng.range(segment.l + half, segment.r - half));
+      const start = candidate - ((count - 1) * spacing) / 2;
+      let supported = true;
+      for (let i = 0; i < count && supported; i++) {
+        const sx = Math.round(start + i * spacing);
+        let minY = Infinity, maxY = -Infinity;
+        for (let xx = sx - 10; xx <= sx + 10; xx++) {
+          const cc = map.get(xx);
+          if (!cc) { supported = false; break; }
+          minY = Math.min(minY, cc.y); maxY = Math.max(maxY, cc.y);
+        }
+        if (maxY - minY > 10) supported = false;
+      }
+      if (supported) { cx = candidate; break; }
+    }
+    if (cx === null) return null;
 
     const startX = cx - ((count - 1) * spacing) / 2;
     for (let i = 0; i < count; i++) {
       const sx = clamp(Math.round(startX + i * spacing), minX + 10, maxX - 10);
       const col = map.get(sx);
       if (!col) continue;
+      let supportY = col.y;
+      for (let xx = sx - 10; xx <= sx + 10; xx++) supportY = Math.max(supportY, map.get(xx).y);
       let facing;
       if (count === 1) facing = sx < S.W / 2 ? 1 : -1;
       else if (count === 2) facing = i === 0 ? 1 : -1;
       else facing = i < (count - 1) / 2 ? 1 : -1;
-      drawOldKing(g, sx, col.y + 2, rng, facing, i);
+      drawOldKing(g, sx, supportY + 2, rng, facing, i);
     }
     return [cx - half, cx + half];
   }
@@ -300,11 +319,19 @@ const Omens = (() => {
         if (ok) { tx = x; break; }
       }
       if (tx === null) continue;
-      placed.push(tx);
+      const tw = rng.int(6, 8);
       const col = map.get(tx);
       if (!col) continue;
-      const baseY = col.y + 2;
-      const tw = rng.int(6, 8);
+      let supportY = col.y, minSupportY = col.y, supported = true;
+      for (let xx = tx - Math.ceil(tw / 2); xx <= tx + Math.ceil(tw / 2); xx++) {
+        const cc = map.get(xx);
+        if (!cc) { supported = false; break; }
+        minSupportY = Math.min(minSupportY, cc.y);
+        supportY = Math.max(supportY, cc.y);
+      }
+      if (!supported || supportY - minSupportY > 6) continue;
+      placed.push(tx);
+      const baseY = supportY + 2;
       const th = Math.round(rng.int(20, 30) * (ruined ? rng.range(0.45, 0.7) : 1));
       const x0 = tx - (tw >> 1);
       for (let c2 = 0; c2 < tw; c2++) {
