@@ -1,7 +1,7 @@
 /* omens.js — rare happenings. At most one per vista, in ~20% of seeds:
    dragon, orc horde, sea monster, burning village, long-ship fleet, battlefield,
    dueling wizards, elven wood, foxes, centaur, ghosts, ravens, silent kings,
-   distant volcano, graveyard, watchtowers (whole or broken), dwarven column. */
+   distant volcano, full eruption, graveyard, watchtowers (whole or broken), dwarven column. */
 "use strict";
 
 const Omens = (() => {
@@ -343,7 +343,8 @@ const Omens = (() => {
   /* a distant volcano baked behind the ridges */
   function bakeBackdrop(scene, geoRef, g, rng) {
     S = scene; geo = geoRef;
-    if (S.omen !== "volcano") return;
+    if (S.omen !== "volcano" && S.omen !== "eruption") return;
+    const erupting = S.omen === "eruption";
     const W = S.W;
     const cx = Math.round(W * rng.range(0.2, 0.8));
     const hz = geo.horizonY;
@@ -429,10 +430,26 @@ const Omens = (() => {
       }
     }
 
+    // The catastrophic version has several incandescent fractures. This is
+    // deliberately separate so the original, quietly smoking volcano keeps
+    // exactly its established silhouette and detailing.
+    if (erupting) {
+      for (let run = -1; run <= 1; run++) {
+        let lx = cx + run * 2;
+        const dir = run === 0 ? (lightLeft ? -1 : 1) : run;
+        for (let i = 0; i < Math.round(h * (0.34 + Math.abs(run) * 0.12)); i++) {
+          if (i % 5 === 0) lx += dir;
+          const heat = 1 - i / (h * 0.5);
+          g.fillStyle = css(heat > 0.65 ? hsl(38, 100, 66) : heat > 0.25 ? hsl(14, 94, 48) : hsl(2, 66, 29), 0.92);
+          if (i % 3 !== 1 || run === 0) g.fillRect(lx, topY + 2 + i, heat > 0.74 ? 2 : 1, 1);
+        }
+      }
+    }
+
     // A narrow veil at the foot settles the cone into the distant ridges.
     g.fillStyle = css(S.pal.horizon, 0.13);
     g.fillRect(cx - baseHalf, hz + 1, baseHalf * 2, 3);
-    geo.volcano = { x: cx, topY, craterHalf, h, baseHalf };
+    geo.volcano = { x: cx, topY, craterHalf, h, baseHalf, erupting };
   }
 
   function bakeVillage(g, groundCols, rng) {
@@ -698,7 +715,23 @@ const Omens = (() => {
         }
         break;
       case "volcano":
-        if (geo.volcano) volcanoFx = { smoke: [], smokeT: 0, ph: rng.range(0, 6) };
+        if (geo.volcano) volcanoFx = { smoke: [], smokeT: 0, ph: rng.range(0, 6), erupting: false };
+        break;
+      case "eruption":
+        if (geo.volcano) {
+          const ash = [], fallingEmbers = [];
+          for (let i = 0, n = Math.round(W * 0.24); i < n; i++) {
+            ash.push({ x: rng.range(0, W), y: rng.range(0, H), sp: rng.range(5, 15), sway: rng.range(0, 6), size: rng.chance(0.16) ? 2 : 1 });
+          }
+          for (let i = 0, n = Math.round(W * 0.065); i < n; i++) {
+            fallingEmbers.push({ x: rng.range(0, W), y: rng.range(0, H), sp: rng.range(7, 19), ph: rng.range(0, 6), hot: rng.chance(0.25) });
+          }
+          volcanoFx = {
+            smoke: [], smokeT: 0, ph: rng.range(0, 6), erupting: true,
+            eruptionSmoke: [], plumeT: 0, bombs: [], bombT: rng.range(0.5, 1.8),
+            ash, fallingEmbers, flash: 0,
+          };
+        }
         break;
       case "dwarves": {
         // a column of delvers on the road, single file
@@ -1223,6 +1256,110 @@ const Omens = (() => {
     }
   }
 
+  function drawEruption(ctx, t, dt) {
+    const v = geo.volcano, fx = volcanoFx;
+    const wd = geo.windDir || 1;
+
+    // Dense rolling plume: a narrow black stem mushrooms into a broad,
+    // wind-torn crown. Particles grow in chunky pixel steps as they rise.
+    fx.plumeT -= dt;
+    while (fx.plumeT <= 0) {
+      for (let i = 0; i < 2; i++) {
+        fx.eruptionSmoke.push({
+          x: v.x + (Math.random() * 6 - 3), y: v.topY - 1,
+          age: 0, life: 10 + Math.random() * 6, rise: 8 + Math.random() * 4,
+          side: Math.random() < 0.5 ? -1 : 1, ph: Math.random() * 6,
+        });
+      }
+      fx.plumeT += 0.1;
+    }
+    const soot = mix(rgb(27, 25, 27), S.pal.zenith, 0.22);
+    const ash = mix(rgb(91, 86, 82), S.pal.horizon, 0.28);
+    for (let i = fx.eruptionSmoke.length - 1; i >= 0; i--) {
+      const sm = fx.eruptionSmoke[i];
+      sm.age += dt;
+      if (sm.age > sm.life) { fx.eruptionSmoke.splice(i, 1); continue; }
+      const crown = Math.max(0, sm.age - 3.2);
+      const spread = sm.side * crown * crown * 0.48;
+      const xx = sm.x + wd * sm.age * (1.5 + S.windLevel * 2.2) + spread + Math.sin(sm.age * 1.7 + sm.ph) * (1 + sm.age * 0.42);
+      const yy = sm.y - sm.age * sm.rise + crown * 0.62;
+      const sz = clamp(2 + Math.floor(sm.age * 0.72), 2, 10);
+      const fade = clamp(1 - sm.age / sm.life, 0, 1);
+      ctx.fillStyle = css(soot, 0.58 * fade);
+      ctx.fillRect(Math.round(xx) - 1, Math.round(yy), sz + 2, sz + 2);
+      ctx.fillStyle = css(ash, 0.34 * fade);
+      ctx.fillRect(Math.round(xx), Math.round(yy) - 1, sz, Math.max(1, sz - 2));
+      if (sm.age < 2.2) {
+        ctx.fillStyle = css(hsl(12, 82, 36), 0.24 * (1 - sm.age / 2.2));
+        ctx.fillRect(Math.round(xx), Math.round(yy) + sz - 1, Math.max(1, sz - 2), 2);
+      }
+    }
+
+    // Periodic pressure bursts illuminate the crater and throw lava bombs.
+    fx.flash = Math.max(0, fx.flash - dt * 1.8);
+    fx.bombT -= dt;
+    if (fx.bombT <= 0) {
+      fx.flash = 1;
+      fx.bombT = 2.8 + Math.random() * 4.8;
+      for (let i = 0; i < 14; i++) {
+        fx.bombs.push({ x: v.x + Math.random() * 4 - 2, y: v.topY,
+          vx: (Math.random() * 20 - 10) + wd * 3, vy: -(18 + Math.random() * 24), age: 0 });
+      }
+    }
+    if (fx.flash > 0) {
+      ctx.fillStyle = css(hsl(20, 94, 54), 0.08 * fx.flash);
+      ctx.fillRect(0, 0, S.W, geo.horizonY + 8);
+    }
+    const glow = 0.72 + 0.24 * Math.sin(t * 5.4 + fx.ph) + fx.flash * 0.25;
+    ctx.fillStyle = css(hsl(15, 100, 52), 0.22 * glow);
+    const gr = v.craterHalf + 10;
+    for (let dy = -gr; dy <= gr; dy++) {
+      const ww = Math.floor(Math.sqrt(Math.max(0, gr * gr - dy * dy)) * 1.8);
+      ctx.fillRect(v.x - ww, v.topY + Math.round(dy * 0.45), ww * 2, 1);
+    }
+    for (let i = fx.bombs.length - 1; i >= 0; i--) {
+      const b = fx.bombs[i];
+      b.age += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 28 * dt;
+      if (b.age > 4 || b.y > S.H + 4) { fx.bombs.splice(i, 1); continue; }
+      const hot = b.age < 1.2;
+      ctx.fillStyle = css(hot ? hsl(42, 100, 70) : hsl(12, 92, 48), 0.92);
+      ctx.fillRect(Math.round(b.x), Math.round(b.y), hot ? 2 : 1, hot ? 2 : 1);
+      ctx.fillStyle = css(hsl(8, 86, 39), 0.5);
+      ctx.fillRect(Math.round(b.x - b.vx * 0.035), Math.round(b.y - b.vy * 0.035), 1, 1);
+    }
+  }
+
+  function drawEruptionOverlay(ctx, t, dt) {
+    const fx = volcanoFx;
+    if (!fx || !fx.erupting) return;
+    const wd = geo.windDir || 1;
+    const ashCol = mix(rgb(152, 148, 143), S.pal.horizon, 0.52);
+    ctx.fillStyle = css(ashCol, 0.48);
+    for (const a of fx.ash) {
+      a.y += a.sp * dt;
+      a.x += (wd * (1.5 + S.windLevel * 3) + Math.sin(t * 0.8 + a.sway) * 1.2) * dt;
+      if (a.y > S.H + 2) { a.y = -2; a.x = Math.random() * S.W; }
+      if (a.x > S.W + 2) a.x = -2; else if (a.x < -2) a.x = S.W + 2;
+      ctx.fillRect(Math.round(a.x), Math.round(a.y), a.size, a.size);
+    }
+    for (const e of fx.fallingEmbers) {
+      e.y += e.sp * dt;
+      e.x += wd * (2.5 + S.windLevel * 5) * dt;
+      if (e.y > S.H + 3 || e.x > S.W + 3 || e.x < -3) {
+        e.y = -Math.random() * S.H * 0.35;
+        e.x = Math.random() * S.W;
+        e.hot = Math.random() < 0.25;
+      }
+      const flicker = 0.58 + 0.42 * Math.sin(t * 7 + e.ph);
+      ctx.fillStyle = css(e.hot ? hsl(45, 100, 72) : hsl(17, 96, 54), 0.42 + flicker * 0.48);
+      ctx.fillRect(Math.round(e.x), Math.round(e.y), e.hot ? 2 : 1, 1);
+      if (e.hot) {
+        ctx.fillStyle = css(hsl(8, 88, 42), 0.42);
+        ctx.fillRect(Math.round(e.x - wd), Math.round(e.y - 1), 1, 1);
+      }
+    }
+  }
+
   /* ---------- dwarven column ---------- */
   function updateDwarves(ctx, t, dt) {
     const d = dwarves, W = S.W;
@@ -1554,11 +1691,15 @@ const Omens = (() => {
 
   /* ---------- per-frame entry points ---------- */
   function drawScene(ctx, t, dt) {
-    if (volcanoFx && geo.volcano) drawVolcano(ctx, t, dt);
+    if (volcanoFx && geo.volcano) {
+      drawVolcano(ctx, t, dt);
+      if (volcanoFx.erupting) drawEruption(ctx, t, dt);
+    }
     if (dragon) updateDragon(ctx, t, dt);
     if (villageFx) drawVillageFire(ctx, t, dt);
     if (ravens) updateRavens(ctx, t, dt);
   }
+  function drawOverlay(ctx, t, dt) { drawEruptionOverlay(ctx, t, dt); }
   function drawWater(ctx, t, dt) {
     if (dragon && geo.waterY !== null) {
       const lift = Math.cos(dragonWingPhase(t, dragon) * Math.PI * 2);
@@ -1578,5 +1719,5 @@ const Omens = (() => {
     if (dwarves) updateDwarves(ctx, t, dt);
   }
 
-  return { bakeMid, bakeFore, bakeBackdrop, init, drawScene, drawWater, drawFore };
+  return { bakeMid, bakeFore, bakeBackdrop, init, drawScene, drawWater, drawFore, drawOverlay };
 })();

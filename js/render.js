@@ -54,7 +54,7 @@ const Render = (() => {
       else { lightY = H * rng.range(0.12, 0.3); glowStr = 0.35; }
       geo.sun = { x: lightX, y: lightY };
     }
-    const showMoon = p.night || S.showMoonAtDusk;
+    const showMoon = S.omen !== "eruption" && (p.night || S.showMoonAtDusk);
     if (showMoon) {
       geo.moon = { x: S.moonX * W, y: H * rng.range(0.1, 0.32) };
       if (!p.sunVisible) { lightX = geo.moon.x; lightY = geo.moon.y; glowStr = 0.12; glowR = W * 0.3; }
@@ -1256,7 +1256,7 @@ const Render = (() => {
     ctx.drawImage(sky, 0, 0);
 
     // stars
-    if (dyn.stars.length) {
+    if (S.omen !== "eruption" && dyn.stars.length) {
       const dim = 1 - S.cloudCover * 0.7;
       for (const st of dyn.stars) {
         const a = st.b * (0.65 + 0.35 * Math.sin(t * st.tw + st.ph)) * dim * (p.night ? 1 : 0.45);
@@ -1477,6 +1477,9 @@ const Render = (() => {
         ctx.fillRect(Math.round(((fx % W) + W) % W), Math.round(f.y), 1, 1);
       }
     }
+
+    // Ash and embers sit above every landscape plane, like true weather.
+    Omens.drawOverlay(ctx, t, dt);
 
     // lightning
     if (S.weather === "storm") updateLightning(ctx, t, dt);

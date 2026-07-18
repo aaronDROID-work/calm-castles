@@ -31,6 +31,12 @@ function buildPalette(p, rng) {
       break;
   }
 
+  // The eruption owns the sky regardless of hour: cold charcoal overhead,
+  // dirty ash-light at the horizon, and only the faintest buried warmth.
+  if (p.omen === "eruption") {
+    stops = [[216, 10, 13], [212, 9, 19], [207, 8, 27], [28, 10, 36]];
+  }
+
   // weather adjustments
   let satMul = 1, lightAdd = 0;
   if (weather === "overcast") { satMul = 0.42; lightAdd = -4; }
@@ -45,7 +51,7 @@ function buildPalette(p, rng) {
   pal.zenith = pal.sky[0];
 
   // ---- sun / moon ----
-  pal.sunVisible = timeOfDay !== "night" && weather !== "overcast" &&
+  pal.sunVisible = p.omen !== "eruption" && timeOfDay !== "night" && weather !== "overcast" &&
                    weather !== "rain" && weather !== "storm" && weather !== "snow";
   if (timeOfDay === "dawn" || timeOfDay === "dusk") pal.sun = hsl(24, 78, 78);
   else if (timeOfDay === "golden") pal.sun = hsl(38, 85, 80);
@@ -60,6 +66,10 @@ function buildPalette(p, rng) {
   pal.cloudDark = shade(pal.cloudLight, -0.28);
   if (timeOfDay === "dusk" || timeOfDay === "dawn" || timeOfDay === "golden") {
     pal.cloudLight = mix(pal.cloudLight, hsl(20, 70, 60), 0.35);
+  }
+  if (p.omen === "eruption") {
+    pal.cloudLight = mix(pal.horizon, rgb(76, 72, 69), 0.45);
+    pal.cloudDark = mix(shade(pal.cloudLight, -0.38), rgb(31, 29, 30), 0.3);
   }
 
   // ---- land hue by season ----

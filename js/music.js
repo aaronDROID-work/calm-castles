@@ -220,7 +220,7 @@ const Music = (() => {
     const snow = sc.weather === "snow" || sc.season === "winter";
     const forest = sc.terrain === "darkforest";
     const storm = sc.weather === "storm";
-    const grim = ["dragon", "orcs", "village", "battlefield", "ghosts", "ravens", "volcano"].includes(sc.omen);
+    const grim = ["dragon", "orcs", "village", "battlefield", "ghosts", "ravens", "volcano", "eruption"].includes(sc.omen);
     const a = {
       padLevel: 1,
       padStep: 16 + srng() * 5,

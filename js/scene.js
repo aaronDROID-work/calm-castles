@@ -88,7 +88,7 @@ function generateScene(seed, W, H) {
 
   // ---- rare omens: at most one per vista, ~20% of seeds ----
   const omenPool = ["dragon", "orcs", "battlefield", "village", "duel",
-    "foxes", "centaur", "ghosts", "ravens", "argonath", "volcano",
+    "foxes", "centaur", "ghosts", "ravens", "argonath", "volcano", "eruption",
     "graveyard", "turrets", "ruinturrets", "dwarves"];
   if (s.hasWater) omenPool.push("seamonster", "ship");
   if (s.terrain !== "coast" && s.terrain !== "swamp") omenPool.push("elves");
@@ -101,8 +101,19 @@ function generateScene(seed, W, H) {
   s.argonathCount = s.omen === "argonath"
     ? rng.weighted([[1, 28], [2, 38], [3, 22], [4, 12]])
     : 0;
+  // A full eruption is its own omen: the quiet volcano remains untouched.
+  // Ash chokes the sky and sends wildlife and ordinary travellers to shelter.
+  if (s.omen === "eruption") {
+    s.weather = "overcast";
+    s.cloudCover = 1;
+    s.windLevel = Math.max(0.45, s.windLevel);
+    s.birdFlocks = 0;
+    s.livestock = "none";
+    s.fireflies = false;
+    s.characterDensity = "none";
+  }
   // grim or fey omens empty the land of ordinary folk
-  if (["orcs", "village", "battlefield", "ghosts", "elves"].includes(s.omen))
+  if (["orcs", "village", "battlefield", "ghosts", "elves", "eruption"].includes(s.omen))
     s.characterDensity = "none";
 
   // ---- palette ----
@@ -158,6 +169,7 @@ function makeCaption(s, rng) {
         ? [`the silent king of ${name}`, `the stone warden of ${name}`]
         : [`the silent kings of ${name}`, `the stone wardens of ${name}`, `the gates of ${name}`],
       volcano: [`the mountain of fire near ${name}`, `${name}, under the burning peak`],
+      eruption: [`the fire mountain wakes above ${name}`, `ashfall over ${name}`, `${name}, beneath the burning sky`],
       graveyard: [`the sleepers of ${name}`, `quiet stones near ${name}`],
       turrets: [`the watchtowers of ${name}`, `the silent watch over ${name}`],
       ruinturrets: [`the broken towers of ${name}`, `old watchfires of ${name}`],
