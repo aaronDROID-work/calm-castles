@@ -112,6 +112,45 @@ const Render = (() => {
     }
   }
 
+  function drawMoonwoodBackdrop(g, rng, p, hz) {
+    const far = mix(shade(p.land, -0.38), p.horizon, 0.52);
+    const rim = mix(far, p.horizon, 0.22);
+    const n = Math.max(9, Math.round(W / 34));
+    for (let i = 0; i < n; i++) {
+      const x = Math.round((i + rng.range(-0.25, 0.25)) * W / Math.max(1, n - 1));
+      const w = rng.int(3, 7);
+      const base = hz + rng.int(14, 34);
+      const top = rng.int(-18, Math.round(H * 0.12));
+      g.fillStyle = css(far, rng.range(0.66, 0.9));
+      g.fillRect(x - (w >> 1), top, w, base - top);
+      g.fillStyle = css(rim, 0.5);
+      g.fillRect(x - (w >> 1), top, 1, base - top);
+      // High branches disappear into a continuous, rounded ceiling.
+      const crownY = top + rng.int(0, 14);
+      fillCircle(g, x + rng.int(-7, 7), crownY, rng.int(12, 24), far);
+    }
+    g.fillStyle = css(far, 0.92);
+    for (let x = 0; x < W; x += rng.int(12, 22))
+      fillCircle(g, x, rng.int(-6, 8), rng.int(14, 28), far);
+  }
+
+  function drawCloudSea(g, rng, p, hz, noise) {
+    const fog = mix(p.horizon, rgb(245, 246, 250), p.night ? 0.06 : 0.34);
+    for (let band = 0; band < 3; band++) {
+      const by = hz + 4 + band * rng.int(8, 13);
+      const off = rng.range(0, 400);
+      for (let x = 0; x < W; x++) {
+        const crest = Math.round(by + noise(x * (0.012 + band * 0.003) + off) * (3 + band * 2));
+        const depth = 7 + band * 4;
+        for (let yy = 0; yy < depth; yy++) {
+          const a = Math.sin((yy / depth) * Math.PI) * (0.2 + band * 0.045);
+          g.fillStyle = css(fog, a);
+          g.fillRect(x, crest + yy, 1, 1);
+        }
+      }
+    }
+  }
+
   /* ---------- ridges + mid terrain + structures ---------- */
   function buildLayers(rng) {
     layers = makeCanvas(W, H);
@@ -123,8 +162,11 @@ const Render = (() => {
     // water level per terrain
     geo.waterY = null;
     if (S.terrain === "lake" || S.terrain === "swamp") geo.waterY = Math.round(H * rng.range(0.68, 0.76));
+    if (S.terrain === "mirrorwater") geo.waterY = Math.round(H * rng.range(0.64, 0.7));
     if (S.terrain === "coast") geo.waterY = hz + 2;
     geo.foreBase = Math.round(H * (S.hasWater ? rng.range(0.86, 0.9) : rng.range(0.82, 0.87)));
+
+    if (S.terrain === "moonwood") drawMoonwoodBackdrop(g, rng, p, hz);
 
     // --- distant high mountains (some vistas) ---
     if (S.mountains) {
@@ -244,7 +286,8 @@ const Render = (() => {
     Omens.bakeBackdrop(S, geo, g, rng);
 
     // --- far ridges ---
-    const nRidges = { lake: 2, coast: 1, valley: 3, hills: 2, plains: 1, swamp: 1, darkforest: 2 }[S.terrain];
+    const nRidges = { lake: 2, coast: 1, valley: 3, hills: 2, plains: 1, swamp: 1,
+      darkforest: 2, moonwood: 2, highlands: 4, ruinpeak: 2, mirrorwater: 2 }[S.terrain];
     for (let i = 0; i < nRidges; i++) {
       const baseY = hz + i * rng.range(5, 9) + 2;
       const amp = (S.terrain === "plains" ? 6 : 12 + i * 7) * rng.range(0.8, 1.3);
@@ -260,6 +303,8 @@ const Render = (() => {
         g.fillRect(x, y, 1, 1);
       }
     }
+
+    if (S.terrain === "highlands") drawCloudSea(g, rng, p, hz, noise);
 
     // distant isles for coast
     if (S.terrain === "coast" && rng.chance(0.6)) {
@@ -366,13 +411,14 @@ const Render = (() => {
       }
     }
 
-    else if (S.terrain === "coast") {
+    else if (S.terrain === "coast" || S.terrain === "mirrorwater") {
       // cliff mass on one side
+      const mirror = S.terrain === "mirrorwater";
       const leftSide = S.castleX < 0.5;
-      let inner = Math.round(W * rng.range(0.32, 0.46));
+      let inner = Math.round(W * (mirror ? rng.range(0.38, 0.56) : rng.range(0.32, 0.46)));
       inner = Math.max(inner, Math.round((footL + footR) * 1.6) + 24);
       inner = Math.min(inner, W - 20);
-      const cliffHigh = geo.waterY - rng.range(26, 44);
+      const cliffHigh = geo.waterY - rng.range(mirror ? 38 : 26, mirror ? 62 : 44);
       const cCol = shade(p.midLand, -0.12);
       const smoothstep = (f) => f * f * (3 - 2 * f);
       const localF = (x) => (leftSide ? x : W - 1 - x) / inner;
@@ -401,7 +447,72 @@ const Render = (() => {
       if (struct) stampStructure(gr.plateauY + 1);
     }
 
-    else { // valley / hills / plains — stacked ground bands, no water
+    else if (S.terrain === "highlands") {
+      // A single inhabited summit rises through broken banks of cloud.
+      const baseY = H * rng.range(0.72, 0.79);
+      const span = Math.max(footL + footR + 34, W * rng.range(0.22, 0.34));
+      const peakH = H * rng.range(0.2, 0.29);
+      const off = rng.range(0, 400);
+      const natural = (x) => baseY - Math.pow(Math.max(0, 1 - Math.abs(x - siteX) / span), 1.45) * peakH + noise(x * 0.035 + off) * 3;
+      const gr = makeGround(natural, 0, W - 1, flat);
+      const body = shade(p.midLand, -0.12), lit = shade(body, 0.16), deep = shade(body, -0.3);
+      for (let x = 0; x < W; x++) {
+        const y = gr.ys[x];
+        g.fillStyle = css(body); g.fillRect(x, y, 1, H - y);
+        g.fillStyle = css((x < siteX) === geo.lightFromLeft ? lit : deep, 0.52);
+        if ((x + Math.round(y)) % 4 !== 0) g.fillRect(x, y + 1, 1, Math.min(12, H - y));
+        g.fillStyle = css(lit); g.fillRect(x, y, 1, 1);
+        groundCols.push({ x, y, col: body });
+      }
+      // Cloud gaps cut across the lower slopes and make the peak feel airborne.
+      drawCloudSea(g, rng, p, Math.round(baseY - 18), noise);
+      if (struct) stampStructure(gr.plateauY + 1);
+    }
+
+    else if (S.terrain === "ruinpeak") {
+      // Monumental stepped masonry: part mountain, part structure, old enough
+      // that its geometry has softened into the landscape.
+      const baseY = H * rng.range(0.75, 0.82);
+      const span = Math.max(footL + footR + 30, W * rng.range(0.27, 0.39));
+      const peakH = H * rng.range(0.24, 0.34);
+      const natural = (x) => {
+        const rise = Math.max(0, 1 - Math.abs(x - siteX) / span) * peakH;
+        return baseY - Math.floor(rise / 5) * 5 + noise(x * 0.055 + 81) * 1.5;
+      };
+      const gr = makeGround(natural, 0, W - 1, flat);
+      const stone = mix(p.midLand, p.castleMid, 0.42);
+      const light = shade(stone, 0.18), dark = shade(stone, -0.34);
+      for (let x = 0; x < W; x++) {
+        const y = gr.ys[x];
+        g.fillStyle = css(stone); g.fillRect(x, y, 1, H - y);
+        g.fillStyle = css((x < siteX) === geo.lightFromLeft ? light : dark, 0.58);
+        if (Math.abs(x - siteX) % 9 < 2) g.fillRect(x, y + 2, 1, Math.min(18, H - y));
+        g.fillStyle = css(light); g.fillRect(x, y, 1, 1);
+        if ((Math.round(y) + x) % 11 === 0) {
+          g.fillStyle = css(dark, 0.72); g.fillRect(x, y + rng.int(4, 16), rng.int(2, 4), 1);
+        }
+        groundCols.push({ x, y, col: stone });
+      }
+      // A narrow stair and sparse rune-panels lead toward the summit.
+      const stairDir = geo.lightFromLeft ? -1 : 1;
+      g.fillStyle = css(light, 0.66);
+      for (let i = 0; i < 12; i++) {
+        const sx = siteX + stairDir * (footL + 4 + i * 2);
+        const sy = gr.ys[clamp(Math.round(sx), 0, W - 1)] + 2;
+        g.fillRect(Math.round(sx), sy, 4, 1);
+      }
+      g.fillStyle = css(dark, 0.82);
+      for (let i = 0; i < rng.int(2, 4); i++) {
+        const rx = clamp(siteX + rng.int(-Math.round(span * 0.55), Math.round(span * 0.55)), 3, W - 4);
+        const ry = gr.ys[Math.round(rx)] + rng.int(5, 14);
+        g.fillRect(rx - 2, ry - 3, 5, 4);
+        g.fillStyle = css(p.accent, 0.34); g.fillRect(rx, ry - 2, 1, 2);
+        g.fillStyle = css(dark, 0.82);
+      }
+      if (struct) stampStructure(gr.plateauY + 1);
+    }
+
+    else { // valley / hills / plains / moonwood — stacked ground bands, no water
       const bands = S.terrain === "valley" ? 2 : 1;
       const structBand = struct ? (S.terrain === "valley" ? rng.int(0, 1) : 0) : -1;
       for (let b = 0; b < bands; b++) {
@@ -560,6 +671,9 @@ const Render = (() => {
     const picks = [];
     if (new URLSearchParams(location.search).has("force")) picks.push(new URLSearchParams(location.search).get("force"));
     if (S.terrain === "darkforest") { picks.push("forest", "forest"); } // the wood is the point
+    if (S.terrain === "moonwood") picks.push("forest", "forest", "forest", "grove", "columns");
+    if (S.terrain === "ruinpeak") picks.push("columns", "archRuin", "cairn");
+    if (S.terrain === "highlands") picks.push("crag", "obelisk");
     if (geo.waterY !== null && rng.chance(0.4)) picks.push("waterfall");
     if (rng.chance(0.55)) picks.push("forest");
     if (rng.chance(0.5)) picks.push("grove");
@@ -579,7 +693,7 @@ const Render = (() => {
           if (c) buildWaterfall(g, c.x, c.y, rng, p);
           break;
         case "forest": {
-          const half = S.terrain === "darkforest"
+          const half = S.terrain === "darkforest" || S.terrain === "moonwood"
             ? rng.int(40, Math.max(44, Math.round(W * 0.2)))
             : rng.int(26, Math.max(28, Math.round(W * 0.13)));
           c = tryPlace(half);
@@ -911,7 +1025,7 @@ const Render = (() => {
       }
     }
     // fence
-    if (!S.hasWater && rng.chance(0.35)) {
+    if (!S.hasWater && !["moonwood", "highlands", "ruinpeak"].includes(S.terrain) && rng.chance(0.35)) {
       const fy = rng.int(4, 9);
       const fCol = shade(p.foreLand, -0.4);
       g.fillStyle = css(fCol);
@@ -952,7 +1066,7 @@ const Render = (() => {
     // canvas drawn in front of every creature and character
     front = makeCanvas(W, H);
     const fg = front.getContext("2d");
-    if (rng.chance(0.62)) {
+    if (S.terrain !== "moonwood" && rng.chance(0.62)) {
       const sides = rng.chance(0.25) ? [true, true] : [rng.chance(0.5), false];
       const dark = shade(p.foreLand, -0.52);
       if (sides[0]) drawPine(fg, rng.int(6, Math.round(W * 0.09)), H + 6, rng.int(46, 85), dark, rng);
@@ -963,15 +1077,44 @@ const Render = (() => {
     // Near silhouettes make the world feel observed from within, rather than
     // presented as a flat backdrop. Keep their density low to preserve calm.
     const nearDark = shade(p.foreLand, -0.64);
+    if (S.terrain === "moonwood") drawMoonwoodFrame(fg, rng, nearDark);
     drawNearGrass(fg, rng, nearDark);
-    if (["lake", "coast", "swamp"].includes(S.terrain)) {
+    if (["lake", "coast", "swamp", "mirrorwater"].includes(S.terrain)) {
       drawReedFrame(fg, rng, nearDark, rng.chance(0.5));
       if (rng.chance(S.terrain === "swamp" ? 0.55 : 0.22))
         drawReedFrame(fg, rng, nearDark, false);
     }
-    if (S.terrain === "darkforest" || S.terrain === "swamp" || S.season === "winter") {
-      if (rng.chance(S.terrain === "darkforest" ? 0.7 : 0.36))
+    if (S.terrain === "darkforest" || S.terrain === "moonwood" || S.terrain === "swamp" || S.season === "winter") {
+      if (rng.chance(S.terrain === "darkforest" || S.terrain === "moonwood" ? 0.7 : 0.36))
         drawFramingBough(fg, rng, nearDark, rng.chance(0.5));
+    }
+  }
+
+  function drawMoonwoodFrame(g, rng, col) {
+    const lit = shade(col, 0.13);
+    const sides = rng.chance(0.45) ? [-1, 1] : [rng.chance(0.5) ? -1 : 1];
+    for (const side of sides) {
+      const count = rng.int(2, 4);
+      for (let i = 0; i < count; i++) {
+        const x = side < 0 ? rng.int(-4, Math.round(W * 0.13)) : rng.int(Math.round(W * 0.87), W + 4);
+        const w = rng.int(5, 11);
+        const lean = rng.pick([-1, 0, 0, 1]);
+        g.fillStyle = css(col);
+        for (let y = -8; y < H + 6; y++)
+          g.fillRect(x + Math.round(lean * y / H) - (w >> 1), y, w, 1);
+        g.fillStyle = css(lit, 0.55);
+        g.fillRect(x - (w >> 1), 0, 1, H);
+        const branchY = rng.int(Math.round(H * 0.12), Math.round(H * 0.38));
+        const dir = side < 0 ? 1 : -1;
+        g.fillStyle = css(col);
+        g.fillRect(x, branchY, dir * rng.int(18, 42), 3);
+      }
+    }
+    // Rounded leaves make a dark ceiling while leaving a deliberate window
+    // of open sky near the center of the composition.
+    for (let x = -10; x <= W + 10; x += rng.int(18, 34)) {
+      if (x > W * 0.3 && x < W * 0.7 && rng.chance(0.7)) continue;
+      fillCircle(g, x, rng.int(-5, 12), rng.int(18, 34), col);
     }
   }
 
@@ -1067,8 +1210,10 @@ const Render = (() => {
       g.fillRect(0, 0, W, wh);
     }
     // mist strip
-    if (S.weather === "mist" || S.terrain === "swamp" ||
+    if (S.weather === "mist" || S.terrain === "swamp" || S.terrain === "highlands" ||
+        S.terrain === "mirrorwater" ||
         (S.terrain === "darkforest" && rng.chance(0.5)) ||
+        (S.terrain === "moonwood" && rng.chance(0.72)) ||
         (S.terrain === "lake" && rng.chance(0.3))) {
       const mh = 22;
       const strip = makeCanvas(W * 2, mh);
@@ -1087,12 +1232,14 @@ const Render = (() => {
       }
       g.putImageData(img, 0, 0);
       geo.mistStrip = strip;
-      const nBands = S.weather === "mist" ? 3 : S.terrain === "swamp" ? 2 : 1;
+      const nBands = S.weather === "mist" || S.terrain === "highlands" ? 3
+        : S.terrain === "swamp" || S.terrain === "mirrorwater" ? 2 : 1;
       geo.mistBands = [];
       for (let i = 0; i < nBands; i++) {
         geo.mistBands.push({
           y: rng.range(geo.horizonY - 6, geo.foreBase - 14),
-          alpha: S.weather === "mist" ? rng.range(0.2, 0.38) : rng.range(0.14, 0.22),
+          alpha: S.weather === "mist" || S.terrain === "highlands"
+            ? rng.range(0.2, 0.38) : rng.range(0.14, 0.22),
           speed: rng.range(1.5, 4), off: rng.range(0, W),
         });
       }
@@ -1530,7 +1677,7 @@ const Render = (() => {
     ctx.fillRect(0, wy, W, H - wy);
 
     const refH = Math.min(wy - 1, H - wy);
-    ctx.globalAlpha = S.terrain === "swamp" ? 0.22 : 0.42; // murk barely mirrors
+    ctx.globalAlpha = S.terrain === "swamp" ? 0.22 : S.terrain === "mirrorwater" ? 0.52 : 0.42; // murk barely mirrors
     for (let y = 0; y < refH; y++) {
       const srcY = wy - 1 - y;
       const off = Math.round(Math.sin(t * 1.2 + y * 0.5) * (0.5 + y * 0.045));

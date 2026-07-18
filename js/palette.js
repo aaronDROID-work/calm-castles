@@ -47,6 +47,15 @@ function buildPalette(p, rng) {
 
   pal.sky = stops.map(([h, s, l]) =>
     hsl(h + drift, s * satMul, clamp(l + lightAdd, 3, 88)));
+  if (p.omen !== "eruption") {
+    const envSky = {
+      moonwood: hsl(205, 24, pal.night ? 16 : 42),
+      highlands: hsl(226, 22, pal.night ? 18 : 58),
+      ruinpeak: hsl(232, 16, pal.night ? 17 : 53),
+      mirrorwater: hsl(278, 18, pal.night ? 18 : 62),
+    }[p.terrain];
+    if (envSky) pal.sky = pal.sky.map((c, i) => mix(c, envSky, 0.18 + i * 0.035));
+  }
   pal.horizon = pal.sky[pal.sky.length - 1];
   pal.zenith = pal.sky[0];
 
@@ -92,6 +101,10 @@ function buildPalette(p, rng) {
   // murky / gloomy environments
   if (p.terrain === "swamp") pal.land = mix(pal.land, hsl(85, 26, 22), 0.5);
   if (p.terrain === "darkforest") pal.land = shade(mix(pal.land, hsl(150, 18, 16), 0.4), -0.12);
+  if (p.terrain === "moonwood") pal.land = shade(mix(pal.land, hsl(171, 26, 20), 0.58), -0.1);
+  if (p.terrain === "highlands") pal.land = mix(pal.land, hsl(218, 18, 31), 0.48);
+  if (p.terrain === "ruinpeak") pal.land = mix(pal.land, hsl(224, 12, 29), 0.58);
+  if (p.terrain === "mirrorwater") pal.land = shade(mix(pal.land, hsl(226, 18, 25), 0.52), -0.08);
 
   // ridge layers: far ridges dissolve into the horizon haze
   pal.ridge = (depth) => { // depth 0 = farthest
@@ -112,6 +125,11 @@ function buildPalette(p, rng) {
     pal.water = mix(pal.water, hsl(82, 30, 20), 0.55);
     pal.waterDeep = shade(pal.water, -0.4);
     pal.waterGlint = mix(pal.waterGlint, hsl(80, 35, 48), 0.5);
+  }
+  if (p.terrain === "mirrorwater") {
+    pal.water = mix(pal.water, hsl(258, 20, pal.night ? 18 : 48), 0.42);
+    pal.waterDeep = shade(pal.water, -0.36);
+    pal.waterGlint = mix(pal.waterGlint, pal.horizon, 0.55);
   }
 
   // ---- castle ----

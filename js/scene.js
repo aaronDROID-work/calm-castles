@@ -18,9 +18,16 @@ function generateScene(seed, W, H) {
   // ---- terrain (rolled early — weather leans on it) ----
   s.terrain = rng.weighted([
     ["lake", 24], ["valley", 17], ["coast", 15], ["hills", 15], ["plains", 13],
-    ["swamp", 8], ["darkforest", 8],
+    ["swamp", 8], ["darkforest", 8], ["moonwood", 8], ["highlands", 8],
+    ["ruinpeak", 7], ["mirrorwater", 6],
   ]);
-  s.hasWater = s.terrain === "lake" || s.terrain === "coast" || s.terrain === "swamp";
+  if (typeof location !== "undefined") {
+    const forcedTerrain = new URLSearchParams(location.search).get("terrain");
+    if (["lake", "valley", "coast", "hills", "plains", "swamp", "darkforest",
+      "moonwood", "highlands", "ruinpeak", "mirrorwater"].includes(forcedTerrain))
+      s.terrain = forcedTerrain;
+  }
+  s.hasWater = ["lake", "coast", "swamp", "mirrorwater"].includes(s.terrain);
 
   let weatherPool = [
     ["clear", 34], ["breezy", 24], ["overcast", 12],
@@ -31,6 +38,9 @@ function generateScene(seed, W, H) {
   ];
   if (s.terrain === "swamp") weatherPool.push(["mist", 26]);
   if (s.terrain === "darkforest") weatherPool.push(["mist", 10]);
+  if (s.terrain === "moonwood") weatherPool.push(["mist", 18], ["overcast", 8]);
+  if (s.terrain === "highlands") weatherPool.push(["mist", 34], ["breezy", 16]);
+  if (s.terrain === "mirrorwater") weatherPool.push(["mist", 18], ["clear", 12]);
   s.weather = rng.weighted(weatherPool);
   if (s.timeOfDay === "night" && s.weather === "storm" && rng.chance(0.3)) s.weather = "rain";
 
@@ -40,9 +50,14 @@ function generateScene(seed, W, H) {
     rain: 0.55, storm: 0.9, snow: 0.35 }[s.weather];
 
   // ---- structure ----
-  s.structure = rng.weighted([
+  let structurePool = [
     ["castle", 60], ["ruin", 10], ["tower", 8], ["cottage", 9], ["stones", 4], ["none", 9],
-  ]);
+  ];
+  if (s.terrain === "moonwood") structurePool = [["cottage", 26], ["stones", 24], ["ruin", 18], ["tower", 12], ["none", 20]];
+  if (s.terrain === "highlands") structurePool = [["castle", 32], ["tower", 26], ["ruin", 18], ["stones", 8], ["none", 16]];
+  if (s.terrain === "ruinpeak") structurePool = [["ruin", 34], ["tower", 20], ["stones", 18], ["castle", 10], ["none", 18]];
+  if (s.terrain === "mirrorwater") structurePool = [["tower", 28], ["ruin", 24], ["cottage", 16], ["stones", 10], ["none", 22]];
+  s.structure = rng.weighted(structurePool);
   s.hasWindmill = s.terrain === "plains" && rng.chance(0.35);
   if (s.hasWindmill && s.structure !== "castle") s.structure = "windmill";
   // gloomy lands prefer gloomier keeps
@@ -53,13 +68,15 @@ function generateScene(seed, W, H) {
     rng.chance(s.terrain === "swamp" || s.terrain === "darkforest" ? 0.5 : 0.15);
 
   // ---- distant high mountains behind some vistas ----
-  s.mountains = rng.chance(["valley", "hills", "lake", "darkforest"].includes(s.terrain) ? 0.4 : 0.15);
+  s.mountains = s.terrain === "highlands" || rng.chance(["valley", "hills", "lake", "darkforest"].includes(s.terrain) ? 0.4 : 0.15);
+  if (["moonwood", "ruinpeak", "mirrorwater"].includes(s.terrain)) s.mountains = false;
 
   // castle sits on: hill (default), island (lake only), cliff (coast)
   s.castleSite = "hill";
   if (s.terrain === "lake" && rng.chance(0.4)) s.castleSite = "island";
-  if (s.terrain === "coast") s.castleSite = "cliff";
+  if (s.terrain === "coast" || s.terrain === "mirrorwater") s.castleSite = "cliff";
   s.castleX = rng.range(0.24, 0.76); // fraction of W
+  if (s.terrain === "mirrorwater") s.castleX = rng.chance(0.5) ? rng.range(0.16, 0.3) : rng.range(0.7, 0.84);
 
   // ---- celestial ----
   s.sunX = rng.range(0.15, 0.85);
@@ -71,7 +88,7 @@ function generateScene(seed, W, H) {
   const day = s.timeOfDay !== "night";
   s.birdFlocks = day && s.weather !== "storm" && s.weather !== "rain"
     ? rng.int(0, 2) + (s.weather === "clear" ? 1 : 0) : 0;
-  const meadow = !["coast", "swamp", "darkforest"].includes(s.terrain);
+  const meadow = !["coast", "swamp", "darkforest", "moonwood", "highlands", "ruinpeak", "mirrorwater"].includes(s.terrain);
   s.livestock = "none";
   if (meadow && day && s.weather !== "storm" && rng.chance(0.55)) {
     s.livestock = rng.weighted([["sheep", 60], ["cows", 40]]);
@@ -79,7 +96,7 @@ function generateScene(seed, W, H) {
   }
   const duskyNight = s.timeOfDay === "night" || s.timeOfDay === "dusk";
   s.fireflies = duskyNight && s.weather !== "rain" && s.weather !== "storm" &&
-    (s.terrain === "swamp" ? rng.chance(0.95)
+    (["swamp", "moonwood"].includes(s.terrain) ? rng.chance(0.95)
       : s.season !== "winter" && rng.chance(0.7));
 
   // ---- characters ----
@@ -137,6 +154,10 @@ function makeCaption(s, rng) {
     plains: ["heath", "lea", "field", "steppe"],
     swamp: ["fen", "mire", "marsh", "bog"],
     darkforest: ["wood", "weald", "thicket", "dark wood"],
+    moonwood: ["moonwood", "elder grove", "pillar forest", "shadowed glade"],
+    highlands: ["cloud sea", "high pass", "sky fells", "mistbound heights"],
+    ruinpeak: ["sacred peak", "stone stair", "elder mound", "ruined summit"],
+    mirrorwater: ["mirror lake", "still reach", "moonwater", "glassmere"],
   };
   const timeword = { dawn: "dawn", morning: "morning", noon: "noon",
     golden: "golden hour", dusk: "dusk", night: "night" }[s.timeOfDay];

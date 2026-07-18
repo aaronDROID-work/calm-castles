@@ -193,7 +193,7 @@ const Music = (() => {
       return weightedPick(srng, [["phrygian", 56], ["aeolian", 34], ["dorian", 10]]);
     if (["dawn", "morning", "golden"].includes(sc.timeOfDay))
       return weightedPick(srng, [["dorian", 48], ["aeolian", 42], ["phrygian", 10]]);
-    if (["swamp", "darkforest"].includes(sc.terrain))
+    if (["swamp", "darkforest", "moonwood", "ruinpeak"].includes(sc.terrain))
       return weightedPick(srng, [["aeolian", 46], ["phrygian", 42], ["dorian", 12]]);
     return weightedPick(srng, [["aeolian", 52], ["dorian", 30], ["phrygian", 18]]);
   }
@@ -218,7 +218,7 @@ const Music = (() => {
     const water = sc.hasWater;
     const night = sc.pal.night;
     const snow = sc.weather === "snow" || sc.season === "winter";
-    const forest = sc.terrain === "darkforest";
+    const forest = sc.terrain === "darkforest" || sc.terrain === "moonwood";
     const storm = sc.weather === "storm";
     const grim = ["dragon", "orcs", "village", "battlefield", "ghosts", "ravens", "volcano", "eruption"].includes(sc.omen);
     const a = {
@@ -236,6 +236,15 @@ const Music = (() => {
       droneLevel: 1,
       bells: night,
     };
+    if (sc.terrain === "highlands") {
+      a.stereoWidth += 0.16; a.wet += 0.1; a.leadGap += 9;
+    }
+    if (sc.terrain === "ruinpeak") {
+      a.padBrightness *= 0.82; a.leadLevel *= 0.78; a.leadGap += 12;
+    }
+    if (sc.terrain === "mirrorwater") {
+      a.echo += 0.08; a.wet += 0.08; a.leadGap += 6;
+    }
     if (night) {
       a.padBrightness *= 0.72; a.wet += 0.08; a.dry -= 0.06;
       a.leadGap *= 1.16; a.droneLevel *= 1.08;
@@ -504,7 +513,8 @@ const Music = (() => {
     startDrone();
 
     // Scene-aware ambience and space.
-    const wind = 0.015 + sc.windLevel * (sc.terrain === "darkforest" ? 0.075 : 0.105);
+    const sheltered = sc.terrain === "darkforest" || sc.terrain === "moonwood";
+    const wind = 0.015 + sc.windLevel * (sheltered ? 0.075 : sc.terrain === "highlands" ? 0.13 : 0.105);
     windGain.gain.cancelScheduledValues(now);
     windGain.gain.setValueAtTime(windGain.gain.value, now);
     windGain.gain.linearRampToValueAtTime(wind, now + 4);

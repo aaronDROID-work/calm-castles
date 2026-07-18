@@ -34,7 +34,7 @@ The UI fades away after a few seconds of stillness.
 - **Time of day** — dawn, morning, noon, golden hour, dusk, night (moon with phases, twinkling stars, shooting stars)
 - **Season** — spring, summer, autumn, winter (snowy ground), moorland
 - **Weather** — clear, breezy, overcast, mist, rain, snow, or a storm with lightning and (delayed) thunder
-- **Terrain** — lake, coast, valley, hills, plains, foggy swamp (murky water, drowned trees, drifting mist), or dark forest (dense gloomy woods), with parallax ridgelines and dithered skies; some vistas raise a range of snow-capped mountains behind everything
+- **Terrain** — lake, coast, valley, hills, plains, foggy swamp, or dark forest, plus four monumental environment families: Moonwood, where enormous trunks and rounded foliage enclose shrines and ruins; Cloud Highlands, whose inhabited summits rise through layered fog; Sacred Ruin Peaks built from eroded steps, rune-panels, and ancient stairs; and asymmetric Mirrorwater Cliffs reflected in a broad, nearly empty lake. All retain parallax ridgelines and dithered skies; some vistas raise a range of snow-capped mountains behind everything
 - **Structure** — a castle (on a hill, island, or sea-cliff), a ruin, a lone wizard's tower, a cottage with chimney smoke, a windmill with turning sails, standing stones, or nothing at all — always seated on ground flattened to its true footprint, never floating or overhanging. Some keeps are black-stoned dark citadels with eerie green or violet window-light and grim banners, more often found in swamps and dark woods
 - **Landscape details** — pine forests and groves, great round-crowned oaks (bare-limbed in winter), rocky crags, and animated waterfalls that tumble into lakes and seas; most land is generously strewn with shrubs, stones, boulders, and stray trees, and cave mouths gape with stalactites, rubble, pitch-black depths — and, once in a while, a pair of blinking eyes
 - **Monuments** — weathered statues, obelisks, ruined arches, broken columns, and cairns
@@ -78,7 +78,9 @@ The scene renders at ~270px internal height and upscales with crisp pixels
 (`image-rendering: pixelated`), cover-fit to the window. The internal width
 follows the window's aspect ratio so nothing important gets cropped.
 
-Dev tricks: `?seed=N` reproduces a vista; `?force=<feature>` (waterfall, cave,
+Dev tricks: `?seed=N` reproduces a vista; `?terrain=<terrain>` (moonwood,
+highlands, ruinpeak, mirrorwater, or any original terrain) forces an environment;
+`?force=<feature>` (waterfall, cave,
 statue, obelisk, archRuin, columns, cairn, crag, greatTree, forest, grove)
 guarantees that decoration appears; `?folk=<troupe>` (farmers, druids, townsfolk,
 merchant, soldiers, knight, wizard, royalty) guarantees that troupe appears;

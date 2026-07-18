@@ -34,7 +34,7 @@ const Characters = (() => {
 
     const day = !S.pal.night;
     const dusky = S.timeOfDay === "dusk" || S.timeOfDay === "dawn";
-    const meadow = !["coast", "swamp", "darkforest"].includes(S.terrain);
+    const meadow = !["coast", "swamp", "darkforest", "moonwood", "highlands", "ruinpeak", "mirrorwater"].includes(S.terrain);
     const calm = S.weather !== "storm";
     const dry = calm && S.weather !== "rain";
     const nearStruct = !!geo.structGround;
