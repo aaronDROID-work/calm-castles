@@ -1332,6 +1332,41 @@ const Render = (() => {
       dyn.animals.sort((a, b) => a.y - b.y);
     }
 
+    // One small wildlife vignette at most. Land animals share a loose cluster;
+    // water animals and the eagle use their own depth-appropriate layers.
+    dyn.wildlife = [];
+    dyn.eagle = null;
+    dyn.fish = null;
+    dyn.ducks = [];
+    if (["deer", "rabbits", "wolves"].includes(S.wildlife)) {
+      const center = rng.int(Math.round(W * 0.2), Math.round(W * 0.8));
+      const count = S.wildlifeCount + (S.wildlife === "deer" && S.wildlifeYoung ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        const x = clamp(center + (i - (count - 1) / 2) * rng.int(6, 10), 12, W - 12);
+        dyn.wildlife.push({
+          kind: S.wildlife === "deer" ? (i === 1 && S.wildlifeYoung ? "fawn" : "deer")
+            : S.wildlife === "rabbits" ? "rabbit" : "wolf",
+          x, yOff: rng.int(4, 10), dir: rng.chance(0.5) ? 1 : -1,
+          timer: rng.range(1.5, 6), grazing: rng.chance(0.45), moving: false,
+          hop: 0, antlers: rng.chance(0.38), ph: rng.range(0, 6),
+        });
+      }
+    } else if (S.wildlife === "eagle") {
+      const dir = rng.chance(0.5) ? 1 : -1;
+      dyn.eagle = { x: rng.range(W * 0.12, W * 0.88), y: rng.range(H * 0.12, H * 0.3),
+        dir, speed: rng.range(8, 12), ph: rng.range(0, 6), wait: 0 };
+    } else if (S.wildlife === "fish" && geo.waterY !== null) {
+      dyn.fish = { timer: rng.range(1, 7), active: null, ripple: 0, rippleX: W / 2 };
+    } else if (S.wildlife === "ducks" && geo.waterY !== null) {
+      const baseY = geo.waterY + rng.int(4, Math.max(5, Math.min(14, H - geo.waterY - 8)));
+      const center = rng.range(W * 0.25, W * 0.75);
+      const dir = rng.chance(0.5) ? 1 : -1;
+      for (let i = 0; i < S.wildlifeCount; i++) dyn.ducks.push({
+        x: center - dir * i * rng.range(5, 8), y: baseY + rng.int(-1, 1),
+        dir, speed: rng.range(0.45, 0.85), ph: rng.range(0, 6),
+      });
+    }
+
     // fireflies
     dyn.fireflies = [];
     if (S.fireflies) for (let i = 0, n = rng.int(8, 16); i < n; i++) {
@@ -1468,6 +1503,8 @@ const Render = (() => {
     // land layers + structure
     ctx.drawImage(layers, 0, 0);
 
+    if (dyn.eagle) updateEagle(ctx, t, dt);
+
     // Warm, pixel-clustered light around inhabited windows and a faint pool at
     // the castle threshold. No blur is used, so the low-resolution character
     // of the image remains intact.
@@ -1553,7 +1590,7 @@ const Render = (() => {
     Omens.drawScene(ctx, t, dt);
 
     // water
-    if (geo.waterY !== null) drawWater(ctx, t);
+    if (geo.waterY !== null) drawWater(ctx, t, dt);
 
     // waterfall motion: falling streaks + foam at the plunge
     if (geo.waterfalls && geo.waterfalls.length) {
@@ -1601,6 +1638,8 @@ const Render = (() => {
       }
       drawAnimal(ctx, a, t);
     }
+
+    updateLandWildlife(ctx, t, dt);
 
     // characters in the meadow
     Characters.drawFore(ctx, t, dt);
@@ -1691,7 +1730,7 @@ const Render = (() => {
   }
 
   /* ---------- water ---------- */
-  function drawWater(ctx, t) {
+  function drawWater(ctx, t, dt) {
     const wy = geo.waterY;
     ctx.fillStyle = css(S.pal.water);
     ctx.fillRect(0, wy, W, H - wy);
@@ -1733,6 +1772,8 @@ const Render = (() => {
     ctx.fillStyle = css(shade(S.pal.horizon, 0.1), 0.5);
     ctx.fillRect(0, wy, W, 1);
 
+    drawWaterWildlife(ctx, t, dt);
+
     // rain ripple sparks
     if (dyn.drops.length) {
       ctx.fillStyle = css(S.pal.waterGlint, 0.35);
@@ -1761,6 +1802,198 @@ const Render = (() => {
       ctx.fillStyle = css(shade(p.cowBody, -0.35));
       ctx.fillRect(x - 2, y - 1, 1, 1); ctx.fillRect(x + 1, y - 1, 1, 1);
       ctx.fillRect(x - 1, y - 4, 2, 2);
+    }
+  }
+
+  function wildColor(c, strength = 0.55) {
+    return S.pal.dim > 0 ? mix(c, hsl(232, 40, 12), S.pal.dim * strength) : c;
+  }
+
+  function updateLandWildlife(ctx, t, dt) {
+    if (!dyn.wildlife.length) return;
+    for (const a of dyn.wildlife) {
+      a.timer -= dt;
+      if (a.kind === "rabbit") {
+        if (a.hop > 0) {
+          a.hop -= dt;
+          a.x += a.dir * 7 * dt;
+        } else if (a.timer <= 0) {
+          if (Math.random() < 0.42) a.dir *= -1;
+          a.hop = 0.72;
+          a.timer = 2.5 + Math.random() * 6;
+        }
+      } else if (a.kind === "wolf") {
+        if (a.timer <= 0) {
+          a.moving = !a.moving;
+          if (Math.random() < 0.36) a.dir *= -1;
+          a.timer = a.moving ? 2 + Math.random() * 4 : 3 + Math.random() * 7;
+        }
+        if (a.moving) a.x += a.dir * 2.2 * dt;
+      } else if (a.timer <= 0) {
+        const choice = Math.random();
+        if (choice < 0.5) a.grazing = !a.grazing;
+        else if (choice < 0.72) a.dir *= -1;
+        else a.x += a.dir * 2;
+        a.timer = 2.5 + Math.random() * 7;
+      }
+      if (a.x < W * 0.1 || a.x > W * 0.9) {
+        a.x = clamp(a.x, W * 0.1, W * 0.9);
+        a.dir *= -1;
+      }
+      const gx = clamp(Math.round(a.x), 0, W - 1);
+      let y = geo.foreYs[gx] + a.yOff;
+      if (a.kind === "rabbit" && a.hop > 0) {
+        const progress = 1 - clamp(a.hop / 0.72, 0, 1);
+        y -= Math.sin(progress * Math.PI) * 4;
+      }
+      drawWildAnimal(ctx, a, Math.round(a.x), Math.round(y), t);
+    }
+  }
+
+  function drawWildAnimal(ctx, a, x, y, t) {
+    if (a.kind === "deer" || a.kind === "fawn") {
+      const young = a.kind === "fawn";
+      const body = wildColor(young ? hsl(28, 38, 43) : hsl(27, 34, 34));
+      const light = shade(body, 0.2), dark = shade(body, -0.34);
+      const dir = a.dir;
+      const grazing = a.grazing && !young;
+      const bw = young ? 4 : 6;
+      ctx.fillStyle = css(body);
+      ctx.fillRect(x - Math.floor(bw / 2), y - (young ? 4 : 6), bw, young ? 2 : 3);
+      const neckX = x + dir * (young ? 2 : 3);
+      if (grazing) {
+        ctx.fillRect(neckX, y - 4, 1, 3);
+        ctx.fillRect(neckX + dir, y - 2, young ? 1 : 2, 1);
+      } else {
+        ctx.fillRect(neckX, y - (young ? 6 : 9), young ? 1 : 2, young ? 3 : 5);
+        ctx.fillRect(neckX + dir, y - (young ? 7 : 10), young ? 2 : 3, 2);
+        ctx.fillStyle = css(light);
+        ctx.fillRect(neckX + dir * (young ? 1 : 2), y - (young ? 7 : 10), 1, 1);
+        ctx.fillStyle = css(dark);
+        ctx.fillRect(neckX + dir * 2, y - (young ? 8 : 11), 1, 1);
+        if (!young && a.antlers) {
+          ctx.fillRect(neckX, y - 12, 1, 3);
+          ctx.fillRect(neckX - dir, y - 12, 1, 1);
+          ctx.fillRect(neckX + dir, y - 13, 1, 2);
+        }
+      }
+      ctx.fillStyle = css(dark);
+      const legShift = Math.sin(t * 2 + a.ph) > 0 ? 1 : 0;
+      ctx.fillRect(x - 2, y - 3, 1, 3);
+      ctx.fillRect(x + (young ? 1 : 2) + legShift, y - 3, 1, 3);
+      ctx.fillStyle = css(light);
+      ctx.fillRect(x - dir * Math.floor(bw / 2) - (dir > 0 ? 1 : 0), y - (young ? 4 : 6), 1, 1);
+      return;
+    }
+
+    if (a.kind === "rabbit") {
+      const body = wildColor(hsl(28, 16, S.season === "winter" ? 61 : 38));
+      const dark = shade(body, -0.35);
+      ctx.fillStyle = css(body);
+      ctx.fillRect(x - 1, y - 3, 3, 2);
+      const hx = x + (a.dir > 0 ? 2 : -2);
+      ctx.fillRect(hx, y - 4, 2, 2);
+      ctx.fillRect(hx, y - 7, 1, 3);
+      ctx.fillRect(hx + (a.dir > 0 ? 1 : -1), y - 6, 1, 2);
+      ctx.fillStyle = css(dark);
+      ctx.fillRect(hx + (a.dir > 0 ? 1 : 0), y - 4, 1, 1);
+      ctx.fillStyle = css(shade(body, 0.35));
+      ctx.fillRect(x + (a.dir > 0 ? -2 : 2), y - 3, 1, 1);
+      return;
+    }
+
+    const body = wildColor(hsl(215, 12, 31));
+    const light = shade(body, 0.2), dark = shade(body, -0.42);
+    ctx.fillStyle = css(body);
+    ctx.fillRect(x - 3, y - 5, 6, 2);
+    const hx = x + a.dir * 3;
+    ctx.fillRect(hx + (a.dir < 0 ? -1 : 0), y - 7, 2, 3);
+    ctx.fillRect(hx + a.dir, y - 6, 2, 1);
+    ctx.fillStyle = css(dark);
+    ctx.fillRect(hx, y - 8, 1, 1);
+    ctx.fillRect(x - 2, y - 3, 1, 3); ctx.fillRect(x + 2, y - 3, 1, 3);
+    ctx.fillRect(x - a.dir * 3, y - 5, 1, 1);
+    ctx.fillRect(x - a.dir * 4, y - 6, 1, 1);
+    ctx.fillStyle = css(light); ctx.fillRect(x - 1, y - 5, 2, 1);
+  }
+
+  function updateEagle(ctx, t, dt) {
+    const e = dyn.eagle;
+    if (e.wait > 0) {
+      e.wait -= dt;
+      if (e.wait <= 0) {
+        e.dir = Math.random() < 0.5 ? 1 : -1;
+        e.x = e.dir > 0 ? -16 : W + 16;
+        e.y = H * (0.12 + Math.random() * 0.2);
+      } else return;
+    }
+    e.x += e.dir * e.speed * dt;
+    if ((e.dir > 0 && e.x > W + 18) || (e.dir < 0 && e.x < -18)) {
+      e.wait = 24 + Math.random() * 42;
+      return;
+    }
+    const x = Math.round(e.x), y = Math.round(e.y + Math.sin(t * 0.45 + e.ph) * 3);
+    const flap = Math.round(Math.sin(t * 2.6 + e.ph) * 2);
+    const body = wildColor(hsl(25, 18, 24), 0.42), light = shade(body, 0.38);
+    ctx.fillStyle = css(body);
+    ctx.fillRect(x - 2, y - 1, 5, 2);
+    for (let i = 2; i <= 7; i++) {
+      const wy = y - 1 + Math.round((i - 2) * flap / 6);
+      ctx.fillRect(x - i, wy, 1, i > 5 ? 2 : 1);
+      ctx.fillRect(x + i, wy, 1, i > 5 ? 2 : 1);
+    }
+    ctx.fillRect(x - e.dir * 4, y, 2, 1);
+    ctx.fillStyle = css(light);
+    ctx.fillRect(x + e.dir * 2, y - 2, 2, 2);
+    ctx.fillStyle = css(hsl(42, 72, 57));
+    ctx.fillRect(x + e.dir * 4, y - 1, 1, 1);
+  }
+
+  function drawWaterWildlife(ctx, t, dt) {
+    if (dyn.fish) {
+      const f = dyn.fish;
+      f.timer -= dt;
+      if (!f.active && f.timer <= 0) {
+        f.active = { x: W * (0.2 + Math.random() * 0.6), age: 0,
+          duration: 0.85 + Math.random() * 0.25, dir: Math.random() < 0.5 ? 1 : -1 };
+      }
+      if (f.active) {
+        const j = f.active;
+        j.age += dt;
+        const q = clamp(j.age / j.duration, 0, 1);
+        const x = Math.round(j.x + j.dir * q * 7);
+        const y = Math.round(geo.waterY + 2 - Math.sin(q * Math.PI) * 10);
+        ctx.fillStyle = css(wildColor(mix(S.pal.waterGlint, hsl(205, 26, 38), 0.55)));
+        ctx.fillRect(x - 1, y, 3, 2);
+        ctx.fillRect(x - j.dir * 2, y - 1, 1, 1);
+        ctx.fillRect(x - j.dir * 2, y + 2, 1, 1);
+        if (q >= 1) {
+          f.ripple = 1; f.rippleX = x; f.active = null;
+          f.timer = 7 + Math.random() * 15;
+        }
+      }
+      if (f.ripple > 0) {
+        f.ripple = Math.max(0, f.ripple - dt * 1.5);
+        const rw = 2 + Math.round((1 - f.ripple) * 6);
+        ctx.fillStyle = css(S.pal.waterGlint, f.ripple * 0.45);
+        ctx.fillRect(f.rippleX - rw, geo.waterY + 2, rw * 2, 1);
+      }
+    }
+
+    for (const d of dyn.ducks) {
+      d.x += d.dir * d.speed * dt;
+      if (d.x < 8 || d.x > W - 8) { d.x = clamp(d.x, 8, W - 8); d.dir *= -1; }
+      const x = Math.round(d.x), y = Math.round(d.y + Math.sin(t * 1.2 + d.ph) * 0.6);
+      const body = wildColor(hsl(35, 22, 38)), head = wildColor(hsl(142, 18, 29));
+      ctx.fillStyle = css(S.pal.waterGlint, 0.2);
+      ctx.fillRect(x - d.dir * 5, y + 2, 5, 1);
+      ctx.fillStyle = css(body);
+      ctx.fillRect(x - 2, y, 5, 2);
+      const hx = x + d.dir * 3;
+      ctx.fillStyle = css(head);
+      ctx.fillRect(hx + (d.dir < 0 ? -1 : 0), y - 2, 2, 3);
+      ctx.fillStyle = css(hsl(32, 82, 56));
+      ctx.fillRect(hx + d.dir, y - 1, 1, 1);
     }
   }
 

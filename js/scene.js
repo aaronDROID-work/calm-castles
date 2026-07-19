@@ -133,6 +133,47 @@ function generateScene(seed, W, H) {
   if (["orcs", "village", "battlefield", "ghosts", "elves", "eruption"].includes(s.omen))
     s.characterDensity = "none";
 
+  // ---- wild animals: at most one restrained vignette per scene ----
+  // Busy settlements and livestock fields are intentionally much less likely
+  // to add wildlife, preserving the broad areas of visual quiet.
+  s.wildlife = "none";
+  s.wildlifeCount = 0;
+  s.wildlifeYoung = false;
+  const wildlifePool = [];
+  const dryEnough = s.weather !== "storm" && s.weather !== "rain";
+  if (dryEnough && ["lake", "valley", "hills", "plains", "darkforest", "moonwood"].includes(s.terrain))
+    wildlifePool.push(["deer", ["darkforest", "moonwood"].includes(s.terrain) ? 8 : 5]);
+  if (dryEnough && ["lake", "valley", "hills", "plains"].includes(s.terrain))
+    wildlifePool.push(["rabbits", s.season === "winter" ? 2 : 7]);
+  if (dryEnough && s.timeOfDay !== "night" && (s.mountains || ["coast", "highlands", "ruinpeak"].includes(s.terrain)))
+    wildlifePool.push(["eagle", 6]);
+  if (s.hasWater && s.terrain !== "swamp" && s.weather !== "storm")
+    wildlifePool.push(["fish", 5]);
+  if (["lake", "swamp", "mirrorwater"].includes(s.terrain) &&
+      !["storm", "snow"].includes(s.weather) && s.season !== "winter")
+    wildlifePool.push(["ducks", 6]);
+  if (s.weather !== "storm" && ["hills", "darkforest", "moonwood", "highlands"].includes(s.terrain))
+    wildlifePool.push(["wolves", (s.timeOfDay === "night" || s.timeOfDay === "dusk") ? 7 : 3]);
+
+  const creatureHeavyOmen = ["dragon", "orcs", "village", "battlefield", "volcano", "eruption",
+    "foxes", "centaur", "seamonster", "ship", "dwarves"].includes(s.omen);
+  const wildlifeChance = creatureHeavyOmen || s.livestock !== "none" || s.characterDensity === "many"
+    ? 0 : s.omen ? 0.16 : 0.34;
+  if (wildlifePool.length && rng.chance(wildlifeChance)) s.wildlife = rng.weighted(wildlifePool);
+  if (typeof location !== "undefined") {
+    const forcedWildlife = new URLSearchParams(location.search).get("wildlife");
+    if (["deer", "rabbits", "eagle", "fish", "ducks", "wolves"].includes(forcedWildlife))
+      s.wildlife = forcedWildlife;
+  }
+  if (s.wildlife === "deer") {
+    s.wildlifeCount = 1;
+    s.wildlifeYoung = ["spring", "summer"].includes(s.season) && rng.chance(0.34);
+  } else if (s.wildlife === "rabbits") s.wildlifeCount = rng.int(1, 3);
+  else if (s.wildlife === "eagle" || s.wildlife === "fish") s.wildlifeCount = 1;
+  else if (s.wildlife === "ducks") s.wildlifeCount = rng.int(2, 4);
+  else if (s.wildlife === "wolves") s.wildlifeCount = rng.int(1, 2);
+  if (s.wildlife === "eagle") s.birdFlocks = 0;
+
   // ---- palette ----
   s.pal = buildPalette(s, rng);
 
