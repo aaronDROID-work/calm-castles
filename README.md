@@ -1,8 +1,7 @@
 # calm castles
 
 A meditative web toy: every visit conjures a new, gently animated fantasy vista —
-procedurally generated pixel-art castles and landscapes in the spirit of
-*Superbrothers: Sword & Sworcery EP*, scored by an endlessly generative
+procedurally generated pixel-art castles and landscapes, scored by an endlessly generative
 80s dark-fantasy synth soundtrack. Nothing to do but watch, listen, and breathe.
 
 ## Running it
