@@ -1982,15 +1982,14 @@ const Render = (() => {
 
     for (const d of dyn.ducks) {
       d.x += d.dir * d.speed * dt;
-      if (d.x < 5 || d.x > W - 5) { d.x = clamp(d.x, 5, W - 5); d.dir *= -1; }
+      if (d.x < 4 || d.x > W - 4) { d.x = clamp(d.x, 4, W - 4); d.dir *= -1; }
       const x = Math.round(d.x), y = Math.round(d.y + Math.sin(t * 1.2 + d.ph) * 0.6);
       const body = wildColor(hsl(35, 22, 38)), head = wildColor(hsl(142, 18, 29));
       ctx.fillStyle = css(S.pal.waterGlint, 0.2);
-      ctx.fillRect(x - d.dir * 3, y + 1, 3, 1);
+      ctx.fillRect(d.dir > 0 ? x - 3 : x + 2, y + 1, 2, 1);
       ctx.fillStyle = css(body);
-      ctx.fillRect(x - 1, y, 3, 1);
-      ctx.fillRect(x - d.dir * 2, y - 1, 1, 1);
-      const hx = x + d.dir * 2;
+      ctx.fillRect(x - (d.dir > 0 ? 1 : 0), y, 2, 1);
+      const hx = x + d.dir;
       ctx.fillStyle = css(head);
       ctx.fillRect(hx, y - 1, 1, 1);
       ctx.fillStyle = css(hsl(32, 82, 56));
