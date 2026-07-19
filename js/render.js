@@ -1857,32 +1857,32 @@ const Render = (() => {
       const light = shade(body, 0.2), dark = shade(body, -0.34);
       const dir = a.dir;
       const grazing = a.grazing && !young;
-      const bw = young ? 4 : 6;
+      const bw = young ? 3 : 5;
       ctx.fillStyle = css(body);
-      ctx.fillRect(x - Math.floor(bw / 2), y - (young ? 4 : 6), bw, young ? 2 : 3);
-      const neckX = x + dir * (young ? 2 : 3);
+      ctx.fillRect(x - Math.floor(bw / 2), y - (young ? 4 : 5), bw, 2);
+      const neckX = x + dir * 2;
       if (grazing) {
-        ctx.fillRect(neckX, y - 4, 1, 3);
-        ctx.fillRect(neckX + dir, y - 2, young ? 1 : 2, 1);
+        ctx.fillRect(neckX, y - 4, 1, 2);
+        ctx.fillRect(neckX + dir, y - 2, 2, 1);
       } else {
-        ctx.fillRect(neckX, y - (young ? 6 : 9), young ? 1 : 2, young ? 3 : 5);
-        ctx.fillRect(neckX + dir, y - (young ? 7 : 10), young ? 2 : 3, 2);
+        ctx.fillRect(neckX, y - (young ? 6 : 8), 1, young ? 3 : 4);
+        ctx.fillRect(neckX + dir, y - (young ? 7 : 9), 2, 2);
         ctx.fillStyle = css(light);
-        ctx.fillRect(neckX + dir * (young ? 1 : 2), y - (young ? 7 : 10), 1, 1);
+        ctx.fillRect(neckX + dir, y - (young ? 7 : 9), 1, 1);
         ctx.fillStyle = css(dark);
-        ctx.fillRect(neckX + dir * 2, y - (young ? 8 : 11), 1, 1);
+        ctx.fillRect(neckX, y - (young ? 8 : 10), 1, 1);
         if (!young && a.antlers) {
-          ctx.fillRect(neckX, y - 12, 1, 3);
-          ctx.fillRect(neckX - dir, y - 12, 1, 1);
-          ctx.fillRect(neckX + dir, y - 13, 1, 2);
+          ctx.fillRect(neckX, y - 11, 1, 2);
+          ctx.fillRect(neckX - dir, y - 11, 1, 1);
+          ctx.fillRect(neckX + dir, y - 12, 1, 2);
         }
       }
       ctx.fillStyle = css(dark);
       const legShift = Math.sin(t * 2 + a.ph) > 0 ? 1 : 0;
-      ctx.fillRect(x - 2, y - 3, 1, 3);
-      ctx.fillRect(x + (young ? 1 : 2) + legShift, y - 3, 1, 3);
+      ctx.fillRect(x - (young ? 1 : 2), y - 3, 1, 3);
+      ctx.fillRect(x + 1 + legShift, y - 3, 1, 3);
       ctx.fillStyle = css(light);
-      ctx.fillRect(x - dir * Math.floor(bw / 2) - (dir > 0 ? 1 : 0), y - (young ? 4 : 6), 1, 1);
+      ctx.fillRect(x - dir * (Math.floor(bw / 2) + 1), y - (young ? 4 : 5), 1, 1);
       return;
     }
 
