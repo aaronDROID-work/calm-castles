@@ -6,6 +6,7 @@
   const ctx = canvas.getContext("2d");
   const captionEl = document.getElementById("caption");
   const overlay = document.getElementById("overlay");
+  const welcomeCastle = document.getElementById("welcomeCastle");
   const toastEl = document.getElementById("toast");
   const muteButton = document.getElementById("btnMute");
   const fullButton = document.getElementById("btnFull");
@@ -16,6 +17,30 @@
   let captionTimer = null;
   let idleTimer = null;
   let toastTimer = null;
+
+  function drawWelcomeCastle() {
+    const g = welcomeCastle.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, welcomeCastle.width, welcomeCastle.height);
+
+    const pal = {
+      dim: 0.72,
+      castleDark: hsl(226, 25, 11),
+      castleMid: hsl(225, 18, 25),
+      castleLight: hsl(216, 19, 39),
+      castleRoof: hsl(235, 28, 13),
+      windowLit: hsl(39, 78, 64),
+      windowDark: hsl(230, 32, 7),
+    };
+    const sprite = buildStructure(makeRng(0xca1cca57), pal, "castle", true);
+
+    g.fillStyle = css(hsl(224, 20, 20), 0.55);
+    g.fillRect(8, 58, 96, 1);
+    g.fillStyle = css(hsl(216, 21, 34), 0.4);
+    g.fillRect(19, 57, 23, 1);
+    g.fillRect(70, 57, 31, 1);
+    g.drawImage(sprite.canvas, 14, 50, 112, 60, 0, 0, 112, 60);
+  }
 
   function computeSize() {
     // the window can report 0x0 before first layout — fall back to 16:9
@@ -180,6 +205,7 @@
   Render.onLightning = (delay) => Music.thunder(delay);
 
   /* ---- boot ---- */
+  drawWelcomeCastle();
   const params = new URLSearchParams(location.search);
   const urlSeed = params.get("seed");
   seed = urlSeed !== null ? (parseInt(urlSeed, 10) >>> 0) : (Math.random() * 0xffffffff) >>> 0;

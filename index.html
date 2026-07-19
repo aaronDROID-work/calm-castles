@@ -7,13 +7,14 @@
 <meta name="description" content="An endlessly changing, gently animated pixel-art fantasy vista with a generative dark-fantasy soundtrack.">
 <meta name="theme-color" content="#05060d">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏰</text></svg>">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <canvas id="view" role="img" aria-label="A procedurally generated pixel-art fantasy landscape"></canvas>
 <div id="caption" aria-live="polite"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeText">
+  <canvas id="welcomeCastle" width="112" height="60" role="img" aria-label="A moonlit pixel-art castle"></canvas>
   <h1 id="welcomeTitle">calm castles</h1>
   <p id="welcomeText">an ever-changing vista &middot; best with sound</p>
   <button id="begin" type="button">enter</button>
@@ -32,6 +33,6 @@
 <script src="js/omens.js?v=19"></script>
 <script src="js/render.js?v=23"></script>
 <script src="js/music.js?v=8"></script>
-<script src="js/main.js?v=5"></script>
+<script src="js/main.js?v=6"></script>
 </body>
 </html>
