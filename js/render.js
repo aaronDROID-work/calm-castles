@@ -1566,8 +1566,10 @@ const Render = (() => {
       dyn.smokeTimer -= dt;
       if (dyn.smokeTimer <= 0) {
         for (const src of geo.anchors.smoke) {
-          // One guaranteed puff keeps damage immediately legible; an occasional
-          // second puff holds the plume at about 60% of its former density.
+          if (src.damaged && src.smokeStarted && Math.random() > 0.6) continue;
+          if (src.damaged) src.smokeStarted = true;
+          // One guaranteed puff keeps damage immediately legible; later ticks
+          // emit 60% of the time, with an occasional second puff for variation.
           const count = src.damaged && Math.random() < 0.2 ? 2 : 1;
           for (let puff = 0; puff < count; puff++) {
             dyn.smoke.push({
@@ -1594,8 +1596,8 @@ const Render = (() => {
           : (sm.age > 3 ? 2 : 1);
         const sCol = sm.damaged
           ? (p.night
-            ? mix(p.horizon, rgb(174, 168, 160), 0.58)
-            : mix(p.horizon, rgb(28, 27, 30), 0.82))
+            ? mix(p.horizon, rgb(205, 198, 190), 0.64)
+            : mix(p.horizon, rgb(78, 76, 80), 0.64))
           : mix(p.horizon, rgb(255, 255, 255), 0.15);
         ctx.fillStyle = css(sCol, a);
         const sx = Math.round(xx), sy = Math.round(yy);
