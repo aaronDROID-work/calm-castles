@@ -1449,6 +1449,52 @@ const Render = (() => {
     return c;
   }
 
+  function updateStructureSmoke(ctx, p, dt) {
+    if (!geo.anchors.smoke.length) return;
+    dyn.smokeTimer -= dt;
+    if (dyn.smokeTimer <= 0) {
+      for (const src of geo.anchors.smoke) {
+        if (src.damaged && src.smokeStarted && Math.random() > 0.6) continue;
+        if (src.damaged) src.smokeStarted = true;
+        // One guaranteed puff keeps damage immediately legible; later ticks
+        // emit 60% of the time, with an occasional second puff for variation.
+        const count = src.damaged && Math.random() < 0.2 ? 2 : 1;
+        for (let puff = 0; puff < count; puff++) {
+          dyn.smoke.push({
+            x: src.x + (src.damaged ? Math.random() * 2 - 1 : 0),
+            y: src.y + (src.damaged ? Math.random() * 2 : 0),
+            age: puff * -0.16, ph: Math.random() * 6,
+            damaged: Boolean(src.damaged), life: src.damaged ? 9 + Math.random() * 2.5 : 6,
+          });
+        }
+      }
+      dyn.smokeTimer = 0.45;
+    }
+    for (let i = dyn.smoke.length - 1; i >= 0; i--) {
+      const sm = dyn.smoke[i];
+      sm.age += dt;
+      if (sm.age < 0) continue;
+      if (sm.age > sm.life) { dyn.smoke.splice(i, 1); continue; }
+      const rise = sm.damaged ? 4.2 : 4.5;
+      const yy = sm.y - sm.age * rise;
+      const xx = sm.x + Math.sin(sm.age * 1.5 + sm.ph) * (1 + sm.age * 0.42) + dyn.windDir * sm.age * S.windLevel * 3;
+      const a = (sm.damaged ? 0.66 : 0.3) * (1 - sm.age / sm.life);
+      const sz = sm.damaged
+        ? clamp(2 + Math.floor(sm.age / 2.2), 2, 5)
+        : (sm.age > 3 ? 2 : 1);
+      const sCol = sm.damaged
+        ? (p.night
+          ? mix(p.horizon, rgb(205, 198, 190), 0.64)
+          : mix(p.horizon, rgb(78, 76, 80), 0.64))
+        : mix(p.horizon, rgb(255, 255, 255), 0.15);
+      ctx.fillStyle = css(sCol, a);
+      const sx = Math.round(xx), sy = Math.round(yy);
+      ctx.fillRect(sx, sy, sz, Math.max(1, sz - 1));
+      if (sm.damaged)
+        ctx.fillRect(sx - 1, sy + 1, Math.max(1, sz - 1), Math.max(1, sz - 2));
+    }
+  }
+
   /* ================= FRAME ================= */
 
   function frame(ctx, t, dt) {
@@ -1499,6 +1545,10 @@ const Render = (() => {
       ctx.drawImage(c.sprite, Math.round(c.x), Math.round(c.y));
     }
     if (dyn.overcastDeck) ctx.drawImage(dyn.overcastDeck, 0, 0);
+
+    // Smoke is atmospheric: the land and structures drawn next naturally mask
+    // its source, making each plume appear to rise from within damaged masonry.
+    updateStructureSmoke(ctx, p, dt);
 
     // land layers + structure
     ctx.drawImage(layers, 0, 0);
@@ -1559,52 +1609,6 @@ const Render = (() => {
         }
       }
       ctx.fillRect(m.x, m.y, 1, 1);
-    }
-
-    // Chimney smoke and sparse wisps from recently damaged masonry.
-    if (geo.anchors.smoke.length) {
-      dyn.smokeTimer -= dt;
-      if (dyn.smokeTimer <= 0) {
-        for (const src of geo.anchors.smoke) {
-          if (src.damaged && src.smokeStarted && Math.random() > 0.6) continue;
-          if (src.damaged) src.smokeStarted = true;
-          // One guaranteed puff keeps damage immediately legible; later ticks
-          // emit 60% of the time, with an occasional second puff for variation.
-          const count = src.damaged && Math.random() < 0.2 ? 2 : 1;
-          for (let puff = 0; puff < count; puff++) {
-            dyn.smoke.push({
-              x: src.x + (src.damaged ? Math.random() * 2 - 1 : 0),
-              y: src.y + (src.damaged ? Math.random() * 2 : 0),
-              age: puff * -0.16, ph: Math.random() * 6,
-              damaged: Boolean(src.damaged), life: src.damaged ? 9 + Math.random() * 2.5 : 6,
-            });
-          }
-        }
-        dyn.smokeTimer = 0.45;
-      }
-      for (let i = dyn.smoke.length - 1; i >= 0; i--) {
-        const sm = dyn.smoke[i];
-        sm.age += dt;
-        if (sm.age < 0) continue;
-        if (sm.age > sm.life) { dyn.smoke.splice(i, 1); continue; }
-        const rise = sm.damaged ? 4.2 : 4.5;
-        const yy = sm.y - sm.age * rise;
-        const xx = sm.x + Math.sin(sm.age * 1.5 + sm.ph) * (1 + sm.age * 0.42) + dyn.windDir * sm.age * S.windLevel * 3;
-        const a = (sm.damaged ? 0.66 : 0.3) * (1 - sm.age / sm.life);
-        const sz = sm.damaged
-          ? clamp(2 + Math.floor(sm.age / 2.2), 2, 5)
-          : (sm.age > 3 ? 2 : 1);
-        const sCol = sm.damaged
-          ? (p.night
-            ? mix(p.horizon, rgb(205, 198, 190), 0.64)
-            : mix(p.horizon, rgb(78, 76, 80), 0.64))
-          : mix(p.horizon, rgb(255, 255, 255), 0.15);
-        ctx.fillStyle = css(sCol, a);
-        const sx = Math.round(xx), sy = Math.round(yy);
-        ctx.fillRect(sx, sy, sz, Math.max(1, sz - 1));
-        if (sm.damaged)
-          ctx.fillRect(sx - 1, sy + 1, Math.max(1, sz - 1), Math.max(1, sz - 2));
-      }
     }
 
     // characters near the structure (behind the water/foreground planes)
