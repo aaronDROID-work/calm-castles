@@ -1566,10 +1566,10 @@ const Render = (() => {
       dyn.smokeTimer -= dt;
       if (dyn.smokeTimer <= 0) {
         for (const src of geo.anchors.smoke) {
-          if (src.damaged && Math.random() > 0.28) continue;
+          if (src.damaged && Math.random() > 0.58) continue;
           dyn.smoke.push({
             x: src.x, y: src.y, age: 0, ph: Math.random() * 6,
-            damaged: Boolean(src.damaged), life: src.damaged ? 4.2 + Math.random() * 1.4 : 6,
+            damaged: Boolean(src.damaged), life: src.damaged ? 6.2 + Math.random() * 1.6 : 6,
           });
         }
         dyn.smokeTimer = 0.45;
@@ -1578,13 +1578,17 @@ const Render = (() => {
         const sm = dyn.smoke[i];
         sm.age += dt;
         if (sm.age > sm.life) { dyn.smoke.splice(i, 1); continue; }
-        const rise = sm.damaged ? 3.3 : 4.5;
+        const rise = sm.damaged ? 3.8 : 4.5;
         const yy = sm.y - sm.age * rise;
         const xx = sm.x + Math.sin(sm.age * 1.5 + sm.ph) * (1 + sm.age * 0.42) + dyn.windDir * sm.age * S.windLevel * 3;
-        const a = (sm.damaged ? 0.22 : 0.3) * (1 - sm.age / sm.life);
-        const sz = sm.age > (sm.damaged ? 3.6 : 3) ? 2 : 1;
+        const a = (sm.damaged ? 0.4 : 0.3) * (1 - sm.age / sm.life);
+        const sz = sm.damaged
+          ? (sm.age > 4.5 ? 3 : sm.age > 0.9 ? 2 : 1)
+          : (sm.age > 3 ? 2 : 1);
         const sCol = sm.damaged
-          ? mix(p.horizon, rgb(72, 70, 72), 0.36)
+          ? (p.night
+            ? mix(p.horizon, rgb(126, 121, 116), 0.42)
+            : mix(p.horizon, rgb(42, 40, 43), 0.68))
           : mix(p.horizon, rgb(255, 255, 255), 0.15);
         ctx.fillStyle = css(sCol, a);
         ctx.fillRect(Math.round(xx), Math.round(yy), sz, sz);
