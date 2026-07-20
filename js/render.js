@@ -353,7 +353,7 @@ const Render = (() => {
       const oy = Math.round(baseline) - struct.h;
       g.drawImage(struct.canvas, ox, oy);
       for (const f of struct.flags) geo.anchors.flags.push({ x: ox + f.x, y: oy + f.y, ph: rng.range(0, 6) });
-      for (const sm of struct.smoke) geo.anchors.smoke.push({ x: ox + sm.x, y: oy + sm.y });
+      for (const sm of struct.smoke) geo.anchors.smoke.push({ ...sm, x: ox + sm.x, y: oy + sm.y });
       for (const lw of struct.litWindows) geo.anchors.litWindows.push({ x: ox + lw.x, y: oy + lw.y, ph: rng.range(0, 6) });
       if (struct.mill) geo.anchors.mill = { x: ox + struct.mill.x, y: oy + struct.mill.y, r: struct.mill.r, ph: rng.range(0, 6) };
       // walkable ground in front of the structure, for characters
@@ -1561,23 +1561,31 @@ const Render = (() => {
       ctx.fillRect(m.x, m.y, 1, 1);
     }
 
-    // chimney smoke
+    // Chimney smoke and sparse wisps from recently damaged masonry.
     if (geo.anchors.smoke.length) {
       dyn.smokeTimer -= dt;
       if (dyn.smokeTimer <= 0) {
-        for (const src of geo.anchors.smoke)
-          dyn.smoke.push({ x: src.x, y: src.y, age: 0, ph: Math.random() * 6 });
+        for (const src of geo.anchors.smoke) {
+          if (src.damaged && Math.random() > 0.28) continue;
+          dyn.smoke.push({
+            x: src.x, y: src.y, age: 0, ph: Math.random() * 6,
+            damaged: Boolean(src.damaged), life: src.damaged ? 4.2 + Math.random() * 1.4 : 6,
+          });
+        }
         dyn.smokeTimer = 0.45;
       }
-      const sCol = mix(p.horizon, rgb(255, 255, 255), 0.15);
       for (let i = dyn.smoke.length - 1; i >= 0; i--) {
         const sm = dyn.smoke[i];
         sm.age += dt;
-        if (sm.age > 6) { dyn.smoke.splice(i, 1); continue; }
-        const yy = sm.y - sm.age * 4.5;
-        const xx = sm.x + Math.sin(sm.age * 1.5 + sm.ph) * (1 + sm.age * 0.5) + dyn.windDir * sm.age * S.windLevel * 3;
-        const a = 0.3 * (1 - sm.age / 6);
-        const sz = sm.age > 3 ? 2 : 1;
+        if (sm.age > sm.life) { dyn.smoke.splice(i, 1); continue; }
+        const rise = sm.damaged ? 3.3 : 4.5;
+        const yy = sm.y - sm.age * rise;
+        const xx = sm.x + Math.sin(sm.age * 1.5 + sm.ph) * (1 + sm.age * 0.42) + dyn.windDir * sm.age * S.windLevel * 3;
+        const a = (sm.damaged ? 0.22 : 0.3) * (1 - sm.age / sm.life);
+        const sz = sm.age > (sm.damaged ? 3.6 : 3) ? 2 : 1;
+        const sCol = sm.damaged
+          ? mix(p.horizon, rgb(72, 70, 72), 0.36)
+          : mix(p.horizon, rgb(255, 255, 255), 0.15);
         ctx.fillStyle = css(sCol, a);
         ctx.fillRect(Math.round(xx), Math.round(yy), sz, sz);
       }

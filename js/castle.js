@@ -75,6 +75,7 @@ function buildStructure(rng, pal, kind, lightFromLeft) {
 
   if (kind === "castle" || kind === "ruin") {
     const ruined = kind === "ruin";
+    const ruinSmoke = [];
     const nTowers = rng.int(2, 4);
     const keepW = rng.int(16, 26);
     const keepH = rng.int(30, 46) * (ruined ? 0.7 : 1);
@@ -97,11 +98,14 @@ function buildStructure(rng, pal, kind, lightFromLeft) {
       const dist = rng.int(14, 30) + Math.floor(i / 2) * 12;
       positions.push(Math.round(cx + side * dist));
     }
-    for (const tx of positions) {
+    for (let towerI = 0; towerI < positions.length; towerI++) {
+      const tx = positions[towerI];
       const tw = rng.int(7, 11);
       const th = rng.int(22, 42) * (ruined ? rng.range(0.4, 0.8) : 1);
       const top = baseY - th;
       towerBody(Math.round(tx - tw / 2), tw, top, baseY, ruined && rng.chance(0.7));
+      if (ruined && (towerI === 0 || (towerI === 1 && positions.length > 2)))
+        ruinSmoke.push({ x: tx, y: Math.round(top + 2), damaged: true });
       if (!ruined) {
         if (rng.chance(0.55)) {
           const roofTop = coneRoof(Math.round(tx - tw / 2), tw, top);
@@ -126,6 +130,8 @@ function buildStructure(rng, pal, kind, lightFromLeft) {
       }
     }
     windows(keepX, keepTop, keepW, keepH, 0.6);
+
+    if (ruined) out.smoke.push(...ruinSmoke.slice(0, 2));
 
     // gate arch
     if (!ruined) {

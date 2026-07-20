@@ -307,6 +307,7 @@ const Omens = (() => {
     for (const c of groundCols) { if (c.x < minX) minX = c.x; if (c.x > maxX) maxX = c.x; }
     const avoid = geo.structGround;
     const placed = [];
+    let damagedSmoke = 0;
     const p = S.pal;
     const lit = p.dim > 0.3;
     for (let i = 0, n = rng.int(2, 3); i < n; i++) {
@@ -356,6 +357,10 @@ const Omens = (() => {
           g.fillRect(cs + Math.round(k * 0.3), baseY - 2 - k, 1, 1);
         for (let k = 0, nR = rng.int(3, 5); k < nR; k++)
           g.fillRect(tx + rng.int(-tw, tw), baseY - rng.int(0, 2), rng.int(1, 2), 1);
+        if (damagedSmoke < 2) {
+          geo.anchors.smoke.push({ x: tx, y: baseY - th + 2, damaged: true });
+          damagedSmoke++;
+        }
       }
       for (let wy = baseY - th + 4; wy < baseY - 5; wy += rng.int(6, 9)) {
         const isLit = lit && !ruined && rng.chance(0.5);
