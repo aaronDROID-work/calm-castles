@@ -1566,7 +1566,9 @@ const Render = (() => {
       dyn.smokeTimer -= dt;
       if (dyn.smokeTimer <= 0) {
         for (const src of geo.anchors.smoke) {
-          const count = src.damaged ? 2 : 1;
+          // One guaranteed puff keeps damage immediately legible; an occasional
+          // second puff holds the plume at about 60% of its former density.
+          const count = src.damaged && Math.random() < 0.2 ? 2 : 1;
           for (let puff = 0; puff < count; puff++) {
             dyn.smoke.push({
               x: src.x + (src.damaged ? Math.random() * 2 - 1 : 0),
