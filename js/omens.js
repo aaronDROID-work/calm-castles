@@ -357,7 +357,7 @@ const Omens = (() => {
           g.fillRect(cs + Math.round(k * 0.3), baseY - 2 - k, 1, 1);
         for (let k = 0, nR = rng.int(3, 5); k < nR; k++)
           g.fillRect(tx + rng.int(-tw, tw), baseY - rng.int(0, 2), rng.int(1, 2), 1);
-        if (damagedSmoke < 2) {
+        if (damagedSmoke < 3) {
           geo.anchors.smoke.push({ x: tx, y: baseY - th + 2, damaged: true });
           damagedSmoke++;
         }

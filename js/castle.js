@@ -104,7 +104,7 @@ function buildStructure(rng, pal, kind, lightFromLeft) {
       const th = rng.int(22, 42) * (ruined ? rng.range(0.4, 0.8) : 1);
       const top = baseY - th;
       towerBody(Math.round(tx - tw / 2), tw, top, baseY, ruined && rng.chance(0.7));
-      if (ruined && (towerI === 0 || (towerI === 1 && positions.length > 2)))
+      if (ruined && towerI < 3)
         ruinSmoke.push({ x: tx, y: Math.round(top + 2), damaged: true });
       if (!ruined) {
         if (rng.chance(0.55)) {
@@ -131,7 +131,7 @@ function buildStructure(rng, pal, kind, lightFromLeft) {
     }
     windows(keepX, keepTop, keepW, keepH, 0.6);
 
-    if (ruined) out.smoke.push(...ruinSmoke.slice(0, 2));
+    if (ruined) out.smoke.push(...ruinSmoke.slice(0, 3));
 
     // gate arch
     if (!ruined) {
