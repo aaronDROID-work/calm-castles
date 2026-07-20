@@ -4,7 +4,7 @@
 const Render = (() => {
   let S = null;          // scene
   let W = 0, H = 0;
-  let sky, layers, above, fore, front;   // canvases: sky, ridges+mid, composite, foreground, front-most framing
+  let sky, layers, structureCover, above, fore, front; // static depth planes
   let geo = {};          // geometry & anchors
   let dyn = {};          // dynamic state
   let grainFrames = [], vignette;
@@ -154,7 +154,9 @@ const Render = (() => {
   /* ---------- ridges + mid terrain + structures ---------- */
   function buildLayers(rng) {
     layers = makeCanvas(W, H);
+    structureCover = makeCanvas(W, H);
     const g = layers.getContext("2d");
+    const structureG = structureCover.getContext("2d");
     const p = S.pal;
     const hz = geo.horizonY;
     const noise = makeNoise1D(rng, 4);
@@ -352,6 +354,7 @@ const Render = (() => {
       const ox = siteX - Math.round(struct.w / 2);
       const oy = Math.round(baseline) - struct.h;
       g.drawImage(struct.canvas, ox, oy);
+      structureG.drawImage(struct.canvas, ox, oy);
       for (const f of struct.flags) geo.anchors.flags.push({ x: ox + f.x, y: oy + f.y, ph: rng.range(0, 6) });
       for (const sm of struct.smoke) geo.anchors.smoke.push({ ...sm, x: ox + sm.x, y: oy + sm.y });
       for (const lw of struct.litWindows) geo.anchors.litWindows.push({ x: ox + lw.x, y: oy + lw.y, ph: rng.range(0, 6) });
@@ -537,7 +540,7 @@ const Render = (() => {
     }
 
     // --- rare omen: a burning village baked into this band ---
-    const omenZone = Omens.bakeMid(S, geo, g, groundCols, rng);
+    const omenZone = Omens.bakeMid(S, geo, g, groundCols, rng, structureG);
 
     // --- landscape decorations ---
     decorate(g, rng, groundCols, flat, p, omenZone);
@@ -1546,12 +1549,13 @@ const Render = (() => {
     }
     if (dyn.overcastDeck) ctx.drawImage(dyn.overcastDeck, 0, 0);
 
-    // Smoke is atmospheric: the land and structures drawn next naturally mask
-    // its source, making each plume appear to rise from within damaged masonry.
-    updateStructureSmoke(ctx, p, dt);
-
     // land layers + structure
     ctx.drawImage(layers, 0, 0);
+
+    // The smoke sits in front of mountains and terrain, then a transparent
+    // structure-only cover masks its source behind roofs and masonry.
+    updateStructureSmoke(ctx, p, dt);
+    ctx.drawImage(structureCover, 0, 0);
 
     if (dyn.eagle) updateEagle(ctx, t, dt);
 

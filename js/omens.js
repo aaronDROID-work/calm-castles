@@ -109,13 +109,21 @@ const Omens = (() => {
 
   /* ============ static bakes ============ */
 
-  function bakeMid(scene, geoRef, g, groundCols, rng) {
+  function bakeMid(scene, geoRef, g, groundCols, rng, structureG = null) {
     S = scene; geo = geoRef;
     if (S.omen === "village") return bakeVillage(g, groundCols, rng);
     if (S.omen === "elves") { bakeElfWood(g, groundCols, rng); return null; }
     if (S.omen === "argonath") return bakeArgonath(g, groundCols, rng);
     if (S.omen === "turrets" || S.omen === "ruinturrets") {
-      bakeTurrets(g, groundCols, rng, S.omen === "ruinturrets");
+      let turretG = g;
+      if (structureG) {
+        turretG = {
+          get fillStyle() { return g.fillStyle; },
+          set fillStyle(value) { g.fillStyle = value; structureG.fillStyle = value; },
+          fillRect(...args) { g.fillRect(...args); structureG.fillRect(...args); },
+        };
+      }
+      bakeTurrets(turretG, groundCols, rng, S.omen === "ruinturrets");
       return null;
     }
     return null;
